@@ -1,8 +1,12 @@
-# PCL 下载中心（PCL2 主页插件复活版）
+# PCL 下载中心（第三方修改版）
 
 > 面向 **PCL2 2.99.0.0 官方版**（已移除游戏下载功能的版本）。
 > 通过 **PCL 主页自定义插件（Custom.xaml）** + **独立后端（PCLDownloadCenter.exe，HTTP 服务 + Web UI）**，
 > 在本机恢复“下载并安装 Minecraft”的完整能力：原版游戏、加载器、整合包、社区资源入口。
+>
+> 本插件是**第三方基于 PCL（Plain Craft Launcher 2）独立进行二次创作的产物，与 PCL 官方无关**；
+> 原作者龙腾猫跃（LTCat）· [赞助作者](https://meloong.com/afd/a/LTCat) · 上游许可见 [LICENCE-PCL.md](LICENCE-PCL.md)。
+> 本项目以 **GNU GPL-3.0** 发布（[LICENSE](LICENSE)），第三方组件声明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 
 ---
 
@@ -23,13 +27,25 @@
 
 ### 方式一：发布包（推荐）
 
+> 安装脚本**不扫描磁盘**查找 PCL：请先把发布包内容复制到 PCL2 程序所在目录，再在那里运行脚本。
+
 1. 关闭 PCL。
-2. 双击运行发布包里的 `install.ps1`（或在 PowerShell 中执行）：
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\install.ps1 -PclDir "D:\PCL2\PCL"
+2. 把发布包里的全部内容复制到 **PCL2 程序所在目录**（与 `PCL` 文件夹、PCL 主程序 exe 同级）：
+   ```text
+   D:\PCL2\
+     Plain Craft Launcher 2.exe
+     PCL\                         ← 插件装进这个文件夹
+     install.ps1  uninstall.ps1  README.md  bootstrap\
+     LICENSE  LICENCE-PCL.md  THIRD-PARTY-NOTICES.md
    ```
+   复制不会碰你现有的 `PCL\Custom.xaml`（引导页在 `bootstrap\` 里，由安装脚本放入并先备份原主页）。
+3. 在该目录运行（无需参数，脚本按自身所在位置确定 PCL 文件夹）：
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\install.ps1
+   ```
+   也可以显式指定：`.\install.ps1 -PclDir "D:\PCL2\PCL"`；把脚本直接放进 `PCL\` 文件夹里运行也可以。
    脚本会：复制插件到 `PCL\DownloadCenter\`、备份原 `Custom.xaml`、写入引导主页、把 `Setup.ini` 的 `UiCustomType` 设为 1。
-3. 启动 PCL，在主页点一次「刷新主页」即可看到下载中心。
+4. 启动 PCL，在主页点一次「刷新主页」即可看到下载中心。
    > 如果主页还是旧的，请在 PCL「设置 → 界面 → 主页」中选择“使用本地自定义主页”。
 
 ### 方式二：手动
@@ -106,7 +122,7 @@ A：CurseForge 需要 API Key，请在 Web 设置里填写；Modrinth 整合包�
 A：在 Web 设置或 `config.json` 里修改 `ServerPort`，然后重启服务。
 
 **Q：卸载？**
-A：运行发布包里的 `uninstall.ps1`（或 `uninstall.ps1 -PclDir "D:\PCL2\PCL"`），会恢复备份的主页并删除插件目录。
+A：在发布包目录（已复制到 PCL2 程序所在目录）运行 `uninstall.ps1`（或 `uninstall.ps1 -PclDir "D:\PCL2\PCL"`），会恢复备份的主页并删除插件目录。
 
 ---
 
@@ -155,9 +171,29 @@ powershell -ExecutionPolicy Bypass -File tools\pack.ps1       # → release\（�
 ## 7. 验证情况
 
 已在真机 PCL2 2.99.0.0 上完成端到端验证，包括：原版 1.21.4 / 1.21.3 / 1.8.9 等、Fabric / Quilt / Forge / NeoForge、Modrinth 整合包、PCL 主页 6 视图与任务进度、**1.21.4 启动进入主菜单**。
-详细结果、截图与已知限制见发布包内 `docs/DELIVERY.md`、`docs/TEST-REPORT-*.md`。
+详细结果、截图与已知限制见仓库内 [`docs/DELIVERY.md`](docs/DELIVERY.md) 与 `docs/TEST-REPORT-*.md`（发布包不含 `docs/`）。
 
-## 8. 声明
+## 8. 声明与许可
+
+### 8.1 与 PCL 的关系
+
+- 本项目是**第三方基于 PCL 独立进行二次创作的产物，与 PCL 官方无关**。软件名中的「第三方修改版」即上游要求的第三方标识。
+- 上游：[Meloong-Git/PCL](https://github.com/Meloong-Git/PCL) · [Hex-Dragon/PCL2](https://github.com/Hex-Dragon/PCL2)（作者**龙腾猫跃**，版权 © 成都瓜皮龙科技有限公司）。
+  如果觉得 PCL 好用，欢迎[赞助作者](https://meloong.com/afd/a/LTCat)。
+- 上游许可为《[PCL 分发有限许可](https://shimo.im/docs/rGrd8pY8xWkt6ryW#anchor-X0bo)》+《PCL 存储库合理使用指南》；全文已收录在 [LICENCE-PCL.md](LICENCE-PCL.md)，
+  并按要求**继续作为本项目自己的使用指南**。按该指南，本项目属于「重度使用」，已落实其全部要求：第三方声明、名称带第三方标识、
+  「关于」页首位署名与赞助链接、公开源代码、界面保持 PCL 默认蓝色且无赞助解锁类功能。
+- 本项目**不分发任何 PCL 代码或二进制**：发布包里的可执行文件只有我们自己编译的 exe，以及 MIT 许可的 `Newtonsoft.Json.dll`。安装 Forge / NeoForge 时，会从**你本机已安装**的 PCL 程序内
+  提取它自带的补丁版安装器（PCL 自身也用它）。
+- 许可梳理与红线清单见 [docs/LICENSE-ANALYSIS.md](docs/LICENSE-ANALYSIS.md)。
+
+### 8.2 本项目许可
+
+- 本仓库源码与发布包以 **GNU GPL-3.0** 发布，全文见 [LICENSE](LICENSE)。
+- 随包分发的第三方组件：**Newtonsoft.Json 13.0.3（MIT Copyright © James Newton-King）**，全文与其余声明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+- 再分发本项目（或修改后的版本）时，请一并带上 `LICENSE`、`LICENCE-PCL.md`、`THIRD-PARTY-NOTICES.md`，并提供对应源码。
+
+### 8.3 其他
 
 - 本项目通过公开接口下载 Minecraft 与开源社区资源，不包含游戏本体，不分发任何受版权保护的游戏文件。
 - 使用者应自行遵守所在地法律法规与 Minecraft 最终用户许可协议（EULA）；下载即视为同意 EULA。
