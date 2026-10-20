@@ -1,4 +1,4 @@
-﻿# 打包发布目录 release/（PCL 插件 + 安装脚本 + 说明；不含 docs/）
+# 打包发布目录 release/（PCL 插件 + 安装脚本 + 说明；不含 docs/）
 param(
     [string]$OutDir = ''
 )
@@ -50,7 +50,7 @@ foreach ($lf in @('LICENSE','LICENCE-PCL.md','THIRD-PARTY-NOTICES.md')) {
     Copy-Item $lp $plugin -Force
 }
 
-# 注意：发布包**不包含** docs/（内部文档只在仓库里，不随包分发）
+# 注意：发布包**不包含** docs/（文档只随仓库公开）
 
 # 生成一份引导页 Custom.xaml（放在 bootstrap\，由 install.ps1 复制到 PCL\ 后再由后端重写为正式主页；
 # 不直接放进 PCL\ 是为了让“把发布包复制进 PCL2 目录”这一步不会覆盖用户已有的主页）

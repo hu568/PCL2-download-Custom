@@ -10,7 +10,7 @@
   - `Minecraft/` 原版与 Java；`Minecraft/Loaders/` 加载器；`Minecraft/Modpacks/` 整合包
   - `Homepage/` 生成 Custom.xaml；`Util/` 文件/注册表/zip
 - `tools/` 脚本：build / deploy / pack / acceptance / install / uninstall / screenshot / uia
-- `docs/` 文档；`release/` 打包产物；`ref/` PCL 参考源码（只读，独立 git 仓库）
+- `docs/` 文档：`ARCH.md`（架构）、`IMPLEMENTATION.md`（实现说明）、`LICENSE-ANALYSIS.md`（许可分析）随仓库公开；`DELIVERY.md` 与 `TEST-REPORT-*.md` 属**内部文档**（已加入 `.gitignore`，只在开发机保留）；`release/` 打包产物；`ref/` PCL 参考源码（只读，独立 git 仓库）
 - `build/`、`TMP/`、`PLAN*`、`ref/`、`tools/nuget/` 都被 gitignore
 
 ## 命令（在仓库根执行）
@@ -18,7 +18,7 @@
 - 构建：`powershell -ExecutionPolicy Bypass -File tools\build.ps1` → `build\PCLDownloadCenter.exe`
   - csc 直编（不用 MSBuild/.NET SDK），递归收录 `src` 下所有 .cs，新增文件无需改脚本；`-Clean`、`-OutDir` 可用
 - 部署到本机测试 PCL：`tools\deploy.ps1`（默认 `D:\PCL2\PCL\DownloadCenter`，会改 `Setup.ini` 的 `UiCustomType`）
-- 打包：`tools\pack.ps1` → 重建 `release\`（先删除整个目录；**不含 `docs/`**，内部文档只在仓库里）
+- 打包：`tools\pack.ps1` → 重建 `release\`（先删除整个目录；**不含 `docs/`**）
 - 端到端验收：`tools\acceptance.ps1`（默认端口 27361，真实下载，需网络与 `D:\PCL2\.minecraft`；整合包用例需 `$env:DC_MODPACK_ID`）
 - 运行/调试：`build\PCLDownloadCenter.exe --console`；服务端口 27321，仅监听 127.0.0.1；`--stop`、`--status`、`--help`，安装命令见 README §3.3
 - 没有单元测试、lint、formatter、CI；`build.ps1` 的 `/warn:4` 编译是唯一静态检查

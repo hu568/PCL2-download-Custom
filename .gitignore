@@ -6,6 +6,10 @@ TMP/
 # ===== 第三方参考仓库（各自是独立 git 仓库，不随本项目分发）=====
 ref/
 
+# ===== 内部文档（开发机保留，不随仓库分发；docs/ARCH.md、IMPLEMENTATION.md、LICENSE-ANALYSIS.md 公开）=====
+docs/DELIVERY.md
+docs/TEST-REPORT-*.md
+
 # ===== 构建产物 / 发布产物 =====
 build/
 release/PCL/

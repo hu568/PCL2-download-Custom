@@ -170,14 +170,14 @@ powershell -ExecutionPolicy Bypass -File tools\deploy.ps1      # 部署到 D:\PC
 powershell -ExecutionPolicy Bypass -File tools\pack.ps1       # → release\（发布包）
 ```
 
-源码结构见 `docs/ARCH.md`。
+源码结构见 `src/PCLDownloadCenter/`；架构设计与实现说明见 [`docs/ARCH.md`](docs/ARCH.md) 与 [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md)。
 
 ---
 
 ## 7. 验证情况
 
 已在真机 PCL2 2.99.0.0 上完成端到端验证，包括：原版 1.21.4 / 1.21.3 / 1.8.9 等、Fabric / Quilt / Forge / NeoForge、Modrinth 整合包、PCL 主页 6 视图与任务进度、**1.21.4 启动进入主菜单**。
-详细结果、截图与已知限制见仓库内 [`docs/DELIVERY.md`](docs/DELIVERY.md) 与 `docs/TEST-REPORT-*.md`（发布包不含 `docs/`）。
+详细验证记录（截图、过程数据、各模块测试报告）属于**开发内部文档**，不随仓库与发布包分发；上面为可供核对的要点摘录。
 
 ## 8. 声明与许可
 
