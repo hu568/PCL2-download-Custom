@@ -282,6 +282,9 @@ namespace PCLDownloadCenter
                 ctx.Warn("依赖库兜底校验未通过（安装器已下载的库文件通常仍然可用）：" + ex.Message);
             }
 
+            // 版本级 Java 区间：避免 PCL 在装有更新 Java 的机器上自动选到过新的 Java（见 JavaCompat）
+            JavaCompat.Apply(ctx, targetDir);
+
             ctx.Progress(name + " 安装完成", 1.0);
             ctx.Info(name + " 安装完成：" + opt.TargetId);
             return opt.TargetId;

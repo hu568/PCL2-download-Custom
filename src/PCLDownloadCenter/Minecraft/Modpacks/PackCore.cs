@@ -394,9 +394,11 @@ namespace PCLDownloadCenter
         /// 注意：PCL 对 Setup.ini 有内存缓存，因此本模块只创建全新实例名（AllocateInstanceName 重名加后缀），
         /// 不支持覆盖同名实例；否则 PCL 可能用旧缓存回写覆盖这些键。
         /// VersionModpackSource/Id/Version 目前 PCL 2.99 并不读取（写入仅便于本工具/主页展示）。
+        /// 最后还会调用 JavaCompat 写入版本级 Java 区间（见 JavaCompat 的说明）。
         /// </summary>
         public static void WriteInstanceSetup(string instanceDir, string vanillaName, string customInfo,
-            PackSourceInfo info, string modpackVersion, string loader = null, string loaderVersion = null)
+            PackSourceInfo info, string modpackVersion, string loader = null, string loaderVersion = null,
+            InstallContext ctx = null)
         {
             var iniDir = Path.Combine(instanceDir, "PCL");
             FileUtil.EnsureDir(iniDir);
@@ -421,6 +423,9 @@ namespace PCLDownloadCenter
                 if (!string.IsNullOrWhiteSpace(info.ProjectId)) SetIniKey(ini, "VersionModpackId", info.ProjectId);
             }
             if (!string.IsNullOrWhiteSpace(modpackVersion)) SetIniKey(ini, "VersionModpackVersion", modpackVersion);
+
+            // 版本级 Java 区间：避免 PCL 在装有更新 Java 的机器上选到过新的 Java（见 JavaCompat）
+            JavaCompat.Apply(ctx, instanceDir);
         }
 
         /// <summary>设置实例图标（PCL 使用 PCL\Logo.png + LogoCustom）。</summary>

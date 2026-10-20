@@ -71,6 +71,12 @@ PCL 2.99（官方 exe，未修改）
   因此 CF 在线安装与“带 files[] 的 CF zip 导入”在无 Key 时不可用（会回滚并提示）；Modrinth 完全可用。
 - **主页进度非实时**：受 PCL 主页机制限制，需点「刷新主页」；Web UI 为实时。
 - **Java**：不自动下载 Java 运行时；缺 Java 时提示用户通过 PCL 的 Java 管理下载（PCL 2.99 仍保留该功能）。
+  启动游戏用哪个 Java 由 PCL 决定：它对 1.18~1.20.4（版本 JSON 声明 Java 17）只设下界 `[17.0, +∞)`，
+  于是装了 Java 21/25 的机器会选到过新的 Java 而崩溃（实测 `Unsupported class file major version 69`）。
+  因此安装收尾由 `JavaCompat` 给实例写入 `PCL/Setup.ini` 的 `VersionArgumentJavaV2:1` +
+  `VersionArgumentJavaRange:[17.0, 18.0)`，并写 `PCL/config.json` 的 `InstanceMigratedJava=true`
+  （阻止 PCL 首次启动的 Java 设置迁移把 `VersionArgumentJavaV2` 改回 0）。
+  保护范围只覆盖本项目安装的版本；用 PCL 自己安装的加载器版本不带该设置，遇到同类崩溃时可在 PCL 的版本设置里手动填 `[17.0, 18.0)`。
 - OptiFine / LiteLoader 安装未实现（会返回明确提示）。
 - 首次从主页执行命令时，PCL 会弹「执行确认」，需选“继续且今后不再要求确认”（可用 `install.ps1 -SkipCommandConfirm` 预置）。
 

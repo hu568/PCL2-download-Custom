@@ -118,6 +118,12 @@ A：点 PCL 左下角版本选择处的刷新（或重启 PCL）。
 **Q：整合包（CurseForge）安装提示缺少 API Key？**
 A：CurseForge 需要 API Key，请在 Web 设置里填写；Modrinth 整合包无需 Key。
 
+**Q：启动 1.18~1.20.4 的整合包时报 Java 版本不兼容（`Unsupported class file major version`）？**
+A：这段时期的 Forge 只能用 Java 17，而 PCL 会自动挑本机**最新**的 Java（例如 Java 25），于是启动即崩。
+本工具在安装这类版本时会自动写入该版本的 Java 条件（`VersionArgumentJavaV2:1` + `VersionArgumentJavaRange:[17.0, 18.0)`），
+PCL 便只会使用 Java 17；本机没有 Java 17 时 PCL 会按该条件自动下载。需要改用其它 Java 时，在 PCL 的「版本设置 → Java」里直接改即可
+（老版本安装的实例请重装一次或在版本设置里手动改成 `[17.0, 18.0)`）。
+
 **Q：端口被占用？**
 A：在 Web 设置或 `config.json` 里修改 `ServerPort`，然后重启服务。
 

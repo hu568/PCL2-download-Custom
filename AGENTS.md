@@ -4,7 +4,7 @@
 
 ## 目录
 
-- `src/PCLDownloadCenter/` — 全部 C# 源码（46 个 .cs，统一 `namespace PCLDownloadCenter`）
+- `src/PCLDownloadCenter/` — 全部 C# 源码（47 个 .cs，统一 `namespace PCLDownloadCenter`）
   - 根：`Program`/`Cli`/`App`/`AppConfig`/`Paths`/`Logger`/`JsonUtil`/`Contracts`/`Installers`
   - `Net/` 下载与镜像；`Tasks/` 任务队列/进度/取消；`Web/` HttpServer + REST/SSE + 内嵌 Web UI
   - `Minecraft/` 原版与 Java；`Minecraft/Loaders/` 加载器；`Minecraft/Modpacks/` 整合包
@@ -43,5 +43,6 @@
 6. 验收/测试会真实下载并写入 `D:\PCL2\.minecraft`；测试证据在 `build/`（gitignored，不随仓库分发）。
 7. 已知限制不是 bug：CurseForge 需 API Key，OptiFine/LiteLoader 未实现，Java 不自动下载。
 8. `docs/ARCH.md` 是早期规划，个别路径已过时（如 `tools/test-cli.ps1`、`Homepage/HomepageState.cs` 不存在），实现以 `docs/IMPLEMENTATION.md` 和实际文件为准。
+9. 启动游戏用哪个 Java 由 **PCL** 决定，不由本项目决定：`ModJava.GetJavaRequirement` 对 1.18~1.20.4（版本 JSON 声明 Java 17）只追加下界 `[17.0, +∞)`，再取 Java 列表里第一个满足者，于是装了 Java 21/25 的机器会选到过新的 Java，而这段时期的 Forge（38.x~49.x，ModLauncher 10 / Mixin 0.8.5 / 旧版 ASM）读不了 Java 21+ 的类文件（实测崩溃：`Unsupported class file major version 69`）。因此安装收尾由 `JavaCompat` 写入 `<实例>\PCL\Setup.ini` 的 `VersionArgumentJavaV2:1` + `VersionArgumentJavaRange:[17.0, 18.0)`，**并且必须同时写** `<实例>\PCL\config.json` 的 `InstanceMigratedJava=true`——否则 PCL 首次启动的 `MigrateInstanceJavaSettings`（`ModJava.vb:485`）会把 `VersionArgumentJavaV2` 覆盖回 0，区间键失效。改动这套逻辑后必须真机确认 PCL 日志出现 `已选定 Java：Java 17`。注意保护范围只覆盖**本项目安装**的版本；用 PCL 自己装的加载器版本（如 PCL 里给 1.19.2 装 Forge）不会带这个设置。
 
-发布流程：build → pack；`release/*.zip` 未见脚本生成（未核实）。git 只有 1 个初始提交（`chore: ...` + 中文），远端 `hu568/PCL2-download-Custom`。
+发布流程：build → pack；`release/*.zip` 由手工 `Compress-Archive` 生成。远端 `hu568/PCL2-download-Custom`。

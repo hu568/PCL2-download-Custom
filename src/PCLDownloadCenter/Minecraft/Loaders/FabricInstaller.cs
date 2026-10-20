@@ -176,6 +176,9 @@ namespace PCLDownloadCenter
             // 6. 校验
             if (!File.Exists(jsonPath))
                 throw new Exception("版本配置写入后未找到：" + jsonPath);
+            // 版本级 Java 区间：避免 PCL 在装有更新 Java 的机器上自动选到过新的 Java（见 JavaCompat）
+            JavaCompat.Apply(ctx, dir);
+
             ctx.Progress(name + " 安装完成", 1.0);
             ctx.Info(name + " 安装完成：" + targetId);
             return targetId;

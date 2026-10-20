@@ -143,7 +143,7 @@ namespace PCLDownloadCenter
                                  (string.IsNullOrWhiteSpace(versionLabel) ? "" : " · " + versionLabel) +
                                  "（MC " + mcVersion +
                                  (loader == null ? "" : " / " + PackCore.LoaderDisplay(loader)) + "）";
-                PackCore.WriteInstanceSetup(instanceDir, mcVersion, customInfo, info, versionLabel, loader, loaderVersion);
+                PackCore.WriteInstanceSetup(instanceDir, mcVersion, customInfo, info, versionLabel, loader, loaderVersion, ctx);
 
                 // ---------- 下载 manifest files[] ----------
                 if (requested.Count > 0)

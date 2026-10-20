@@ -57,7 +57,7 @@ namespace PCLDownloadCenter
                 ctx.Info("已解压 " + count + " 个文件");
                 PackCore.WriteInstanceSetup(instanceDir, gameVersion,
                     "HMCL 整合包" + (string.IsNullOrWhiteSpace(versionLabel) ? "" : " · " + versionLabel) + "（MC " + gameVersion + "）",
-                    info, versionLabel);
+                    info, versionLabel, null, null, ctx);
 
                 await PackCore.TrySetIconAsync(ctx, instanceDir, info.IconUrl).ConfigureAwait(false);
                 PackCore.FinishInstalling(instanceDir);
@@ -147,7 +147,7 @@ namespace PCLDownloadCenter
                 ctx.Info("已解压 " + count + " 个文件");
                 PackCore.WriteInstanceSetup(instanceDir, mcVersion,
                     "MultiMC 整合包（MC " + mcVersion + (loader == null ? "" : " / " + PackCore.LoaderDisplay(loader)) + "）",
-                    info, null, loader, loaderVersion);
+                    info, null, loader, loaderVersion, ctx);
 
                 await PackCore.TrySetIconAsync(ctx, instanceDir, info.IconUrl).ConfigureAwait(false);
                 PackCore.FinishInstalling(instanceDir);
@@ -232,7 +232,7 @@ namespace PCLDownloadCenter
                 var count = ZipUtil.ExtractPrefix(archivePath, prefix, instanceDir);
                 ctx.Info("已解压 " + count + " 个文件");
                 PackCore.WriteInstanceSetup(instanceDir, fallback,
-                    "普通压缩包（未能识别整合包格式，已继承原版 " + fallback + "）", info, null);
+                    "普通压缩包（未能识别整合包格式，已继承原版 " + fallback + "）", info, null, null, null, ctx);
 
                 PackCore.FinishInstalling(instanceDir);
                 ctx.Info("安装完成：versions/" + instanceName);
@@ -316,7 +316,7 @@ namespace PCLDownloadCenter
                     if (string.IsNullOrWhiteSpace(fallback))
                         throw new Exception("压缩包内的实例缺少版本 JSON，且未找到已安装的原版游戏");
                     PackCore.WriteStandaloneFromInstalled(ctx, fallback, instanceDir, instanceName);
-                    PackCore.WriteInstanceSetup(instanceDir, fallback, "普通压缩包（内嵌实例缺少 JSON）", info, null);
+                    PackCore.WriteInstanceSetup(instanceDir, fallback, "普通压缩包（内嵌实例缺少 JSON）", info, null, null, null, ctx);
                 }
 
                 // 内嵌实例同样要写版本隔离等 PCL 配置（PCL 自己导入实例时也会写；SetIniKey 保留压缩包自带的键）
@@ -338,7 +338,7 @@ namespace PCLDownloadCenter
                     }
                 }
                 catch { }
-                PackCore.WriteInstanceSetup(instanceDir, vanillaName, "普通压缩包（内嵌实例：" + versionName + "）", info, null);
+                PackCore.WriteInstanceSetup(instanceDir, vanillaName, "普通压缩包（内嵌实例：" + versionName + "）", info, null, null, null, ctx);
                 PackCore.FinishInstalling(instanceDir);
                 ctx.Info("安装完成：versions/" + instanceName);
                 ctx.Warn("该压缩包内嵌的实例可能依赖全局 libraries / assets，如 PCL 提示补全请让其自动补全。");

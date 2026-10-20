@@ -107,6 +107,9 @@ namespace PCLDownloadCenter
             VerifyInstall(ctx, info, versionDir, jsonPath, jarPath);
 
             ctx.Progress("完成", 1.0);
+            // 版本级 Java 区间：避免 PCL 在装有更新 Java 的机器上自动选到过新的 Java（见 JavaCompat）
+            JavaCompat.Apply(ctx, versionDir);
+
             ctx.Info("原版游戏 " + versionId + " 安装完成，可在 PCL 版本列表中启动。");
             return versionId;
         }
