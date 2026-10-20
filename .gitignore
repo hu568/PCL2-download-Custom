@@ -1,0 +1,35 @@
+# ===== 按项目要求排除 =====
+PLAN/
+PLAN.md
+TMP/
+
+# ===== 第三方参考仓库（各自是独立 git 仓库，不随本项目分发）=====
+ref/
+
+# ===== 构建产物 / 发布产物 =====
+build/
+release/PCL/
+release/*.zip
+*.pdb
+
+# ===== 可再生的依赖与 SDK 缓存 =====
+tools/nuget/
+tools/dotnet-sdk.zip
+
+# ===== 日志 =====
+*.log
+
+# ===== 运行期数据（配置生成、任务历史、缓存、临时目录）=====
+**/data/logs/
+**/data/tasks.json
+**/data/cache/
+**/data/temp/
+data/
+
+# ===== 操作系统 / 编辑器 =====
+Thumbs.db
+desktop.ini
+.DS_Store
+.vs/
+*.user
+*.suo

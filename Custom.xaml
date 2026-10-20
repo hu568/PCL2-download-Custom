@@ -1,0 +1,8 @@
+<!-- PCL 下载中心 · 引导页 -->
+<local:MyCard Title="PCL 下载中心" Margin="0,0,0,15">
+  <StackPanel Margin="25,40,23,15">
+    <TextBlock TextWrapping="Wrap" Text="下载中心后端状态：占位渲染器" />
+    <TextBlock TextWrapping="Wrap" Margin="0,8,0,0" Text="插件目录：D:\CODE\PCL2-download-Custom\build" />
+    <local:MyButton Margin="0,12,0,0" Height="35" HorizontalAlignment="Left" Padding="25,0,25,0" ColorType="Highlight" Text="打开 Web 下载中心" EventType="打开网页" EventData="http://127.0.0.1:27321/" />
+  </StackPanel>
+</local:MyCard>

@@ -1,0 +1,14 @@
+/nologo
+/target:exe
+/langversion:latest
+/debug-
+/optimize+
+/out:D:\CODE\PCL2-download-Custom\tools\test\ZipTest.exe
+/r:D:\CODE\PCL2-download-Custom\tools\nuget\refasm\build\.NETFramework\v4.8\mscorlib.dll
+/r:D:\CODE\PCL2-download-Custom\tools\nuget\refasm\build\.NETFramework\v4.8\System.dll
+/r:D:\CODE\PCL2-download-Custom\tools\nuget\refasm\build\.NETFramework\v4.8\System.Core.dll
+/r:D:\CODE\PCL2-download-Custom\tools\nuget\refasm\build\.NETFramework\v4.8\System.Net.Http.dll
+/r:D:\CODE\PCL2-download-Custom\tools\nuget\refasm\build\.NETFramework\v4.8\System.IO.Compression.FileSystem.dll
+/r:C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.IO.Compression.dll
+/r:D:\CODE\PCL2-download-Custom\tools\nuget\newtonsoft\lib\net45\Newtonsoft.Json.dll
+D:\CODE\PCL2-download-Custom\tools\test\ZipTest.cs
