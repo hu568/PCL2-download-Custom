@@ -13,6 +13,15 @@ function Test-PclDir([string]$dir) {
     return $false
 }
 
+# 优先按脚本所在目录判断（发布包复制到 PCL2 程序所在目录后直接运行）：
+#   脚本在 PCL2 程序所在目录 → 同级 PCL 文件夹；脚本直接放在 PCL 文件夹里 → 该文件夹
+function Resolve-PclDir([string]$startDir) {
+    if (Test-PclDir (Join-Path $startDir 'PCL')) { return (Join-Path $startDir 'PCL') }
+    if (Test-PclDir $startDir) { return $startDir }
+    return $null
+}
+
+# 兜底：脚本被单独放到别处时，扫描常见安装位置
 function Find-PclDir {
     foreach ($d in @('C','D','E','F')) {
         foreach ($c in @("$($d):\PCL2\PCL", "$($d):\PCL\PCL", "$($d):\Program Files\PCL2\PCL")) {
@@ -22,6 +31,7 @@ function Find-PclDir {
     return $null
 }
 
+if (-not $PclDir) { $PclDir = Resolve-PclDir $PSScriptRoot }
 if (-not $PclDir) { $PclDir = Find-PclDir }
 if (-not $PclDir) {
     $input = Read-Host "请输入 PCL 文件夹路径（例如 D:\PCL2\PCL，直接回车退出）"
@@ -32,7 +42,7 @@ $PclDir = $PclDir.TrimEnd('\')
 $target = Join-Path $PclDir 'DownloadCenter'
 $exe = Join-Path $target 'PCLDownloadCenter.exe'
 
-Write-Host "卸载 PCL 下载中心：$target" -ForegroundColor Cyan
+Write-Host "卸载 PCL 下载中心（第三方修改版）：$target" -ForegroundColor Cyan
 if (Test-Path $exe) { & $exe --stop | Out-Null }
 Start-Sleep -Milliseconds 1000
 $procs = Get-CimInstance Win32_Process -Filter "Name='PCLDownloadCenter.exe'" -ErrorAction SilentlyContinue

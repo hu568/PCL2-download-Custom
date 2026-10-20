@@ -5,7 +5,7 @@ using System.Text;
 namespace PCLDownloadCenter
 {
     /// <summary>
-    /// 主页六个视图的渲染实现。
+    /// 主页七个视图的渲染实现（含按上游要求放置署名与赞助链接的「关于」页）。
     /// 所有视图都预渲染在同一个 Custom.xaml 里，用 Visibility 变量切换；
     /// 事件顺序统一为：执行命令（异步）→ 修改变量（同步）→ 弹出提示 → 刷新主页。
     /// </summary>
@@ -440,6 +440,16 @@ namespace PCLDownloadCenter
             HX.Close(sb, "StackPanel");
             CloseCard(sb);
 
+            OpenCard(sb, "服务管理");
+            HX.Text(sb, "后台服务端口 " + cfg.ServerPort + " · 当前" + (state.ServerRunning ? "运行中" : "未运行") +
+                        "。直接关闭 PCL 不会停止后台服务；这里可以手动启动或停止，任务记录与已下载文件都会保留。", HX.A("FontSize", "11"));
+            HX.Open(sb, "StackPanel", HX.A("Orientation", "Horizontal"), HX.A("Margin", "0,10,0,0"));
+            HX.ButtonEvents(sb, "启动服务", new[] { "执行命令", HX.Cmd("--ensure"), "弹出提示", "正在启动后台服务，约 2 秒后点「刷新主页」" }, null, 100, 32);
+            HX.ButtonEvents(sb, "停止服务", new[] { "执行命令", HX.Cmd("--stop"), "弹出提示", "已请求停止后台服务，约 2 秒后点「刷新主页」确认" }, null, 100, 32, "8,0,0,0");
+            HX.Button(sb, "用浏览器打开下载中心", "执行命令", HX.Cmd("--open-ui"), null, 170, 32, "8,0,0,0");
+            HX.Close(sb, "StackPanel");
+            CloseCard(sb);
+
             OpenCard(sb, "帮助与卸载");
             HX.Text(sb, "本主页由 PCL 下载中心插件自动生成。手动修改 Custom.xaml 会在下次发布时被覆盖。", HX.A("FontSize", "11"));
             HX.Text(sb, "如果主页内容显示异常，可点上述「重新生成主页」重建；也可以直接删除 PCL/Custom.xaml 恢复 PCL 默认主页。",
@@ -449,6 +459,44 @@ namespace PCLDownloadCenter
             HX.Text(sb, "日志目录：PCL/DownloadCenter/data/logs · 插件版本 v" + App.Version +
                 " · 生成时间 " + (state.GeneratedAt == DateTime.MinValue ? DateTime.Now : state.GeneratedAt).ToString("yyyy-MM-dd HH:mm"),
                 HX.A("FontSize", "11"), HX.A("Margin", "0,6,0,0"));
+            CloseCard(sb);
+            CloseView(sb);
+        }
+
+        // ---------------- 关于 ----------------
+
+        /// <summary>
+        /// 关于页。按上游《PCL 存储库合理使用指南》对「重度使用」的第 3 条要求，
+        /// 本页首位给出 PCL 原作者龙腾猫跃的署名与赞助链接，并声明这是第三方二次创作。
+        /// </summary>
+        public static void RenderAbout(StringBuilder sb, HomepageState state)
+        {
+            OpenView(sb, HV.About);
+            OpenCard(sb, "关于 · 致谢");
+            HX.Text(sb, "PCL（Plain Craft Launcher 2）原作者：龙腾猫跃（LTCat）。", HX.A("FontSize", "12"));
+            HX.Open(sb, "StackPanel", HX.A("Orientation", "Horizontal"), HX.A("Margin", "0,10,0,0"));
+            HX.Button(sb, "赞助 PCL 作者", "打开网页", "https://meloong.com/afd/a/LTCat", "Highlight", 150, 32,
+                null, "前往爱发电支持 PCL 原作者龙腾猫跃");
+            HX.Button(sb, "PCL 开源代码", "打开网页", "https://github.com/Hex-Dragon/PCL2", null, 140, 32, "8,0,0,0");
+            HX.Button(sb, "PCL 分发有限许可", "打开网页", "https://shimo.im/docs/rGrd8pY8xWkt6ryW#anchor-X0bo", null, 160, 32, "8,0,0,0");
+            HX.Close(sb, "StackPanel");
+            HX.Text(sb, "本插件是第三方基于 PCL 独立进行二次创作的产物，与 PCL 官方无关；名称中的「第三方修改版」即为此标识。",
+                HX.A("FontSize", "11"), HX.A("Margin", "0,10,0,0"));
+            HX.Text(sb, "本项目遵循引用自 PCL 存储库的《PCL 存储库合理使用指南》（发布包内 LICENCE-PCL.md），并继续把它作为本项目自己的使用指南。",
+                HX.A("FontSize", "11"), HX.A("Margin", "0,6,0,0"));
+            HX.Text(sb, "本插件不实现 Minecraft 启动逻辑：上面「已安装版本」里的「启动游戏」调用的是 PCL 本体的启动功能（正版购买劝导由 PCL 实现）；本插件也没有任何类似 PCL「赞助解锁」的功能。",
+                HX.A("FontSize", "11"), HX.A("Margin", "0,6,0,0"));
+            CloseCard(sb);
+
+            OpenCard(sb, "开源许可");
+            HX.Text(sb, "本插件以 GNU GPL-3.0 发布，源码公开在 github.com/hu568/PCL2-download-Custom。", HX.A("FontSize", "11"));
+            HX.Text(sb, "随包分发的第三方组件：Newtonsoft.Json 13.0.3（MIT）。完整声明见发布包内 LICENSE 与 THIRD-PARTY-NOTICES.md。",
+                HX.A("FontSize", "11"), HX.A("Margin", "0,6,0,0"));
+            HX.Text(sb, "本插件不分发任何 PCL 代码或二进制；安装 Forge / NeoForge 时，会从你本机的 PCL 程序里提取它内嵌的补丁版安装器（与 PCL 自身做法一致）。",
+                HX.A("FontSize", "11"), HX.A("Margin", "0,6,0,0"));
+            HX.Open(sb, "StackPanel", HX.A("Orientation", "Horizontal"), HX.A("Margin", "0,10,0,0"));
+            HX.Button(sb, "本项目源码", "打开网页", "https://github.com/hu568/PCL2-download-Custom", "Highlight", 130, 32);
+            HX.Close(sb, "StackPanel");
             CloseCard(sb);
             CloseView(sb);
         }

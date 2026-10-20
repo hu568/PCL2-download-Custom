@@ -10,11 +10,17 @@ namespace PCLDownloadCenter
 {
     /// <summary>
     /// 主页 Custom.xaml 渲染器（完整实现）。
-    /// 六个视图全部预渲染在同一个文件里，用 {variable:DCVxxx:Visible/Collapsed} 控制显隐；
+    /// 七个视图全部预渲染在同一个文件里，用 {variable:DCVxxx:Visible/Collapsed} 控制显隐；
     /// 视图切换由 PCL 侧的「修改变量 + 刷新主页」纯本地完成，避免执行命令的异步竞态。
     /// </summary>
     public static class HomepageRenderer
     {
+        /// <summary>
+        /// 软件名：按上游《PCL 存储库合理使用指南》对「重度使用」的要求，
+        /// 名称以 PCL 开头并带足以表明第三方修改的后缀。
+        /// </summary>
+        public const string AppTitle = "PCL 下载中心（第三方修改版）";
+
         /// <summary>生成的页面节点数软上限（PCL 用 XamlReader 解析，节点过多会明显变慢）。</summary>
         private const int NodeWarnLimit = 400;
         private const int NodeHardLimit = 520;
@@ -45,6 +51,7 @@ namespace PCLDownloadCenter
             HomepageViews.RenderPack(sb, state);
             HomepageViews.RenderTask(sb, state);
             HomepageViews.RenderSettings(sb, state);
+            HomepageViews.RenderAbout(sb, state);
             return sb.ToString();
         }
 
@@ -53,7 +60,7 @@ namespace PCLDownloadCenter
         {
             var sb = new StringBuilder();
             sb.AppendLine("<!-- PCL 下载中心 · 引导页 -->");
-            HX.Open(sb, "local:MyCard", HX.A("Title", "PCL 下载中心"), HX.A("Margin", "0,0,0,15"));
+            HX.Open(sb, "local:MyCard", HX.A("Title", AppTitle), HX.A("Margin", "0,0,0,15"));
             HX.Open(sb, "StackPanel", HX.A("Margin", "25,40,23,15"));
             HX.Text(sb, "状态：" + (status ?? "未知"));
             HX.Text(sb, "插件目录：" + Paths.PluginDir, HX.A("FontSize", "11"), HX.A("Margin", "0,6,0,0"));
@@ -207,26 +214,33 @@ namespace PCLDownloadCenter
                 ? "服务运行中 · " + (state.ServerUrl ?? "") + " · 运行 " + running + " / 排队 " + queued
                 : "服务未运行 · 请打开 Web 下载中心或点击「重新生成主页」启动后端";
 
-            HX.Open(sb, "local:MyCard", HX.A("Title", "PCL 下载中心"), HX.A("Margin", "0,0,0,15"));
+            HX.Open(sb, "local:MyCard", HX.A("Title", AppTitle), HX.A("Margin", "0,0,0,15"));
             HX.Open(sb, "StackPanel", HX.A("Margin", "25,40,23,15"));
             HX.Text(sb, status, HX.A("FontSize", "11"));
             HX.Text(sb, "在这里安装原版游戏、加载器与整合包；下载任务会在后台执行，可随时切到「任务」页查看进度。", HX.A("Margin", "0,6,0,0"));
 
-            // 视图切换：两行、每行三个按钮（纯本地变量切换，无需等待后端）
-            HX.Open(sb, "StackPanel", HX.A("Orientation", "Horizontal"), HX.A("Margin", "0,12,0,0"));
-            NavButton(sb, HV.Views[0]);
-            NavButton(sb, HV.Views[1]);
-            NavButton(sb, HV.Views[2]);
-            HX.Close(sb, "StackPanel");
-            HX.Open(sb, "StackPanel", HX.A("Orientation", "Horizontal"), HX.A("Margin", "0,8,0,0"));
-            NavButton(sb, HV.Views[3]);
-            NavButton(sb, HV.Views[4]);
-            NavButton(sb, HV.Views[5]);
-            HX.Close(sb, "StackPanel");
+            // 视图切换：每行三个按钮（纯本地变量切换，无需等待后端）
+            for (int row = 0; row * 3 < HV.Views.Length; row++)
+            {
+                HX.Open(sb, "StackPanel", HX.A("Orientation", "Horizontal"),
+                    HX.A("Margin", row == 0 ? "0,12,0,0" : "0,8,0,0"));
+                int end = Math.Min(row * 3 + 3, HV.Views.Length);
+                for (int i = row * 3; i < end; i++) NavButton(sb, HV.Views[i]);
+                HX.Close(sb, "StackPanel");
+            }
 
-            // 常用操作
+            // 常用操作：启动/停止服务两个按钮都常驻。
+            // 主页只是“生成时刻的快照”，停止后状态行会过期，所以不能按状态只留一个按钮；
+            // --stop 成功时会重写主页（服务未运行），用户点「刷新主页」即可看到最新状态。
+            int port = App.Config == null ? 27321 : App.Config.ServerPort;
             HX.Open(sb, "StackPanel", HX.A("Orientation", "Horizontal"), HX.A("Margin", "0,12,0,0"));
             HX.Button(sb, "打开完整下载中心", "执行命令", HX.Cmd("--open-ui"), "Highlight", 150, 32);
+            HX.ButtonEvents(sb, "启动服务",
+                new[] { "执行命令", HX.Cmd("--ensure"), "弹出提示", "正在启动后台服务，约 2 秒后点「刷新主页」" },
+                state.ServerRunning ? null : "Highlight", 96, 32, "8,0,0,0", "启动后台服务（端口 " + port + "）");
+            HX.ButtonEvents(sb, "停止服务",
+                new[] { "执行命令", HX.Cmd("--stop"), "弹出提示", "已请求停止后台服务，约 2 秒后点「刷新主页」确认" },
+                state.ServerRunning ? "Highlight" : null, 96, 32, "8,0,0,0", "停止后台服务（直接关闭 PCL 不会停止它）");
             HX.Button(sb, "刷新主页", "刷新主页", "-", null, 96, 32, "8,0,0,0");
             HX.Close(sb, "StackPanel");
             HX.Close(sb, "StackPanel");

@@ -29,7 +29,7 @@ namespace PCLDownloadCenter
                 Config = Paths.Config;
                 Log = new Logger(Paths.LogDir);
                 Log.Info("========================================");
-                Log.Info("PCL 下载中心启动：v" + Version + "，PID " + System.Diagnostics.Process.GetCurrentProcess().Id);
+                Log.Info(Name + " 启动：v" + Version + "，PID " + System.Diagnostics.Process.GetCurrentProcess().Id);
                 Log.Info("插件目录：" + Paths.PluginDir);
                 Log.Info("PCL 目录：" + Paths.PclDir);
                 Log.Info("MC 目录：" + Paths.McDir);
@@ -42,6 +42,12 @@ namespace PCLDownloadCenter
         }
 
         public const string Version = "1.0.0";
+
+        /// <summary>
+        /// 软件名。按上游《PCL 存储库合理使用指南》对「重度使用」的要求，
+        /// 名称以 PCL 开头并带足以表明第三方修改的后缀，所有对外标题/横幅统一使用它。
+        /// </summary>
+        public const string Name = "PCL 下载中心（第三方修改版）";
 
         public static InstallContext CreateContext(DcTask task = null)
         {

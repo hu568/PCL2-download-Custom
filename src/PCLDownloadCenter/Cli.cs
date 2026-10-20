@@ -106,21 +106,107 @@ namespace PCLDownloadCenter
             return false;
         }
 
+        /// <summary>
+        /// 停止后台服务：先请求 /api/shutdown 并等待端口关闭；
+        /// 5 秒内没停下（例如后端卡死）就直接结束同路径的 --server 进程，避免“服务停不下来”。
+        /// 成功后把主页重写成「服务未运行」，PCL 点「刷新主页」即可看到启动按钮。
+        /// </summary>
         private static int StopServer()
         {
-            if (!HttpServer.IsPortOpen(App.Config.ServerPort)) { WriteLine("服务未在运行。"); return 0; }
+            int port = App.Config.ServerPort;
+            if (!HttpServer.IsPortOpen(port))
+            {
+                WriteLine("服务未在运行。");
+                PublishStoppedHomepage();
+                return 0;
+            }
             try
             {
                 var resp = App.Dl.PostJsonAsync(App.ServerUrl + "/api/shutdown", "{}", CancellationToken.None, 5000, 1, false).GetAwaiter().GetResult();
                 WriteLine("已请求关闭服务：" + resp);
-                Thread.Sleep(600);
-                return 0;
             }
             catch (Exception ex)
             {
-                WriteError("关闭失败：" + ex.Message);
-                return 1;
+                WriteError("请求关闭失败（将直接结束后台进程）：" + ex.Message);
             }
+            if (WaitPortClosed(port, 5000))
+            {
+                WriteLine("服务已停止。");
+                PublishStoppedHomepage();
+                return 0;
+            }
+            WriteLine("服务未在 5 秒内停止，尝试直接结束后台进程……");
+            int killed = KillServerProcesses();
+            if (WaitPortClosed(port, 5000))
+            {
+                WriteLine("服务已停止（结束进程 " + killed + " 个）。");
+                PublishStoppedHomepage();
+                return 0;
+            }
+            WriteError("服务仍未停止（端口 " + port + "）。请手动结束 PCLDownloadCenter.exe 进程。");
+            return 1;
+        }
+
+        /// <summary>轮询等待端口关闭。</summary>
+        private static bool WaitPortClosed(int port, int timeoutMs)
+        {
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < timeoutMs)
+            {
+                if (!HttpServer.IsPortOpen(port)) return true;
+                Thread.Sleep(200);
+            }
+            return !HttpServer.IsPortOpen(port);
+        }
+
+        /// <summary>
+        /// 结束后台服务进程：只处理与当前 exe 路径完全一致的进程，避免误杀其它程序。
+        /// 提权运行的进程取不到路径时会跳过并提示。
+        /// </summary>
+        private static int KillServerProcesses()
+        {
+            int killed = 0;
+            string self = null;
+            try { self = System.Reflection.Assembly.GetExecutingAssembly().Location; } catch { }
+            if (string.IsNullOrWhiteSpace(self)) return 0;
+            try { self = Path.GetFullPath(self); } catch { return 0; }
+            int selfId = -1;
+            try { selfId = Process.GetCurrentProcess().Id; } catch { }
+            string name = Path.GetFileNameWithoutExtension(self);
+            Process[] list;
+            try { list = Process.GetProcessesByName(name); } catch { return 0; }
+            foreach (var proc in list)
+            {
+                try
+                {
+                    if (proc.Id == selfId) continue;
+                    string path = null;
+                    try { path = proc.MainModule == null ? null : proc.MainModule.FileName; } catch { }
+                    if (string.IsNullOrWhiteSpace(path)) continue;
+                    try { path = Path.GetFullPath(path); } catch { continue; }
+                    if (!string.Equals(path, self, StringComparison.OrdinalIgnoreCase)) continue;
+                    WriteLine("结束后台进程：" + proc.Id + "（" + path + "）");
+                    proc.Kill();
+                    if (proc.WaitForExit(5000)) killed++;
+                    else WriteError("进程 " + proc.Id + " 未能结束。");
+                }
+                catch (Exception ex)
+                {
+                    WriteError("结束进程失败：" + ex.Message);
+                }
+                finally
+                {
+                    try { proc.Dispose(); } catch { }
+                }
+            }
+            return killed;
+        }
+
+        /// <summary>停止成功后重写主页（此时本进程没有 HTTP 服务，渲染出的状态即“服务未运行”）。</summary>
+        private static void PublishStoppedHomepage()
+        {
+            try { HomepageRenderer.Publish(true); }
+            catch (Exception ex) { WriteError("重写主页失败：" + ex.Message); }
         }
 
         private static int Status()
@@ -403,7 +489,7 @@ namespace PCLDownloadCenter
 
         private static void PrintUsage()
         {
-            WriteLine("PCL 下载中心 v" + App.Version);
+            WriteLine(App.Name + " v" + App.Version);
             WriteLine("用法：PCLDownloadCenter.exe <命令> [参数…]");
             WriteLine("");
             WriteLine("  --server                     前台运行后台服务");

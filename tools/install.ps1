@@ -1,4 +1,6 @@
 ﻿# 安装 PCL 下载中心插件
+# 用法：先把发布包内容复制到 PCL2 程序所在目录（与 PCL 文件夹、PCL 主程序 exe 同级），再在该目录运行本脚本。
+# 本脚本不扫描磁盘查找 PCL：安装位置只由脚本所在目录决定，或用 -PclDir 显式指定。
 param(
     [string]$PclDir = '',
     [switch]$NoHomepage,
@@ -9,32 +11,31 @@ param(
 $ErrorActionPreference = 'Stop'
 $scriptDir = $PSScriptRoot
 
-function Test-PclDir([string]$dir) {
+# PCL2 程序所在目录（PCL 文件夹的上一级），依据是目录里有 PCL 主程序 exe
+function Test-PclRoot([string]$dir) {
     if ([string]::IsNullOrWhiteSpace($dir)) { return $false }
     if (-not (Test-Path $dir)) { return $false }
-    $parent = Split-Path -Parent $dir
-    $hasExe = $false
     foreach ($name in @('Plain Craft Launcher 2.exe','PCL2_CE_Release_x64.exe','Plain Craft Launcher Community Edition.exe','PCL.exe')) {
-        if (Test-Path (Join-Path $parent $name)) { $hasExe = $true; break }
+        if (Test-Path (Join-Path $dir $name)) { return $true }
     }
-    $hasIni = Test-Path (Join-Path $dir 'Setup.ini')
-    $hasConfig = Test-Path (Join-Path $dir 'config.v1.yml')
-    return ($hasExe -or $hasIni -or $hasConfig)
+    return $false
 }
 
-function Find-PclDir {
-    $cands = New-Object System.Collections.Generic.List[string]
-    if ($env:PCL_DIR) { $cands.Add($env:PCL_DIR) }
-    foreach ($d in @('C','D','E','F')) {
-        $cands.Add("$($d):\PCL2\PCL")
-        $cands.Add("$($d):\PCL\PCL")
-        $cands.Add("$($d):\Program Files\PCL2\PCL")
-        $cands.Add("$($d):\Games\PCL2\PCL")
-        $cands.Add("$($d):\PCL2")
-    }
-    foreach ($c in $cands) {
-        if (Test-PclDir $c) { return $c }
-    }
+# PCL 文件夹，依据是目录里有 Setup.ini 或 config.v1.yml
+function Test-PclFolder([string]$dir) {
+    if ([string]::IsNullOrWhiteSpace($dir)) { return $false }
+    if (-not (Test-Path $dir)) { return $false }
+    return ((Test-Path (Join-Path $dir 'Setup.ini')) -or (Test-Path (Join-Path $dir 'config.v1.yml')))
+}
+
+# 只按脚本所在目录判断（不扫描磁盘）：
+#   脚本放在 PCL2 根目录（同级有 PCL 主程序 exe）→ <PCL2 根>\PCL
+#   脚本直接放进 PCL 文件夹 → 该文件夹本身
+#   脚本放在含 PCL 文件夹的目录 → <目录>\PCL
+function Resolve-PclDir([string]$startDir) {
+    if (Test-PclRoot $startDir) { return (Join-Path $startDir 'PCL') }
+    if (Test-PclFolder $startDir) { return $startDir }
+    if (Test-PclFolder (Join-Path $startDir 'PCL')) { return (Join-Path $startDir 'PCL') }
     return $null
 }
 
@@ -55,10 +56,18 @@ function Stop-ExistingBackend([string]$exePath) {
 
 # 逐文件复制 + 重试（避免单个被占用文件导致整个安装失败）
 function Copy-PluginFiles([string]$source, [string]$dest) {
+    # 发布包直接复制到 PCL2 目录时，源目录就是目标目录，此时文件已就位，无需复制
+    $srcFull = [System.IO.Path]::GetFullPath($source).TrimEnd('\')
+    $dstFull = [System.IO.Path]::GetFullPath($dest).TrimEnd('\')
+    if ($srcFull -ieq $dstFull) {
+        Write-Host "插件文件已经在目标目录（无需复制）。" -ForegroundColor DarkGray
+        return
+    }
     $files = Get-ChildItem -Path $source -Recurse -File
     foreach ($f in $files) {
         $rel = $f.FullName.Substring($source.Length).TrimStart('\')
         $dst = Join-Path $dest $rel
+        if ([System.IO.Path]::GetFullPath($f.FullName) -ieq [System.IO.Path]::GetFullPath($dst)) { continue }
         $dir = Split-Path -Parent $dst
         if ($dir) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
         $ok = $false
@@ -73,21 +82,28 @@ function Copy-PluginFiles([string]$source, [string]$dest) {
     }
 }
 
-Write-Host "PCL 下载中心安装程序" -ForegroundColor Cyan
+Write-Host "PCL 下载中心（第三方修改版）安装程序" -ForegroundColor Cyan
 Write-Host ""
 
-if (-not $PclDir) { $PclDir = Find-PclDir }
+if (-not $PclDir) { $PclDir = Resolve-PclDir $scriptDir }
 if (-not $PclDir) {
-    if ($NonInteractive) { throw "未能自动找到 PCL 文件夹，请用 -PclDir 指定（例如 D:\PCL2\PCL）" }
-    Write-Host "未能自动找到 PCL 的安装位置（PCL 文件夹）。" -ForegroundColor Yellow
-    Write-Host "它通常位于 PCL 程序所在目录下的 PCL 文件夹，例如 D:\PCL2\PCL。" -ForegroundColor Yellow
-    $input = Read-Host "请输入 PCL 文件夹路径（例如 D:\PCL2\PCL，直接回车退出）"
-    if ([string]::IsNullOrWhiteSpace($input)) { Write-Host "已取消。"; exit 1 }
-    $PclDir = $input.Trim('"', "'", ' ')
+    Write-Host "未找到 PCL2 的位置：本脚本不扫描磁盘，只按脚本所在目录判断。" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "请先把发布包内容复制到 PCL2 程序所在目录（与 PCL 文件夹、PCL 主程序 exe 同级），例如：" -ForegroundColor Yellow
+    Write-Host "  D:\PCL2\                        <- 复制到这里" -ForegroundColor DarkGray
+    Write-Host "    Plain Craft Launcher 2.exe" -ForegroundColor DarkGray
+    Write-Host "    PCL\                          （插件装进这个文件夹）" -ForegroundColor DarkGray
+    Write-Host "    install.ps1  uninstall.ps1  README.md  docs\" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "然后在该目录运行：" -ForegroundColor Yellow
+    Write-Host '  powershell -ExecutionPolicy Bypass -File .\install.ps1' -ForegroundColor DarkGray
+    Write-Host "也可以显式指定 PCL 文件夹：" -ForegroundColor Yellow
+    Write-Host '  powershell -ExecutionPolicy Bypass -File .\install.ps1 -PclDir "D:\PCL2\PCL"' -ForegroundColor DarkGray
+    exit 1
 }
 $PclDir = $PclDir.TrimEnd('\')
-if (-not (Test-PclDir $PclDir)) {
-    Write-Host "警告：$PclDir 看起来不像是 PCL 的 PCL 文件夹（没找到 Setup.ini 或上级目录的 PCL 程序）。" -ForegroundColor Yellow
+if (-not (Test-PclFolder $PclDir) -and -not (Test-PclRoot (Split-Path -Parent $PclDir))) {
+    Write-Host "警告：$PclDir 看起来不像 PCL 的 PCL 文件夹（没有 Setup.ini，上级目录也没有 PCL 主程序）。" -ForegroundColor Yellow
     if (-not $NonInteractive) {
         $go = Read-Host "仍要继续安装吗？(y/N)"
         if ($go -notmatch '^[yY]') { Write-Host "已取消。"; exit 1 }
@@ -107,12 +123,9 @@ if ($running) {
 Write-Host ""
 Write-Host "安装到：$PclDir" -ForegroundColor Cyan
 $target = Join-Path $PclDir 'DownloadCenter'
-New-Item -ItemType Directory -Force -Path $target | Out-Null
-Stop-ExistingBackend (Join-Path $target 'PCLDownloadCenter.exe')
-Copy-PluginFiles $src $target
-
-# 备份并写入引导页 Custom.xaml（后端运行后会重写为功能主页）
 $custom = Join-Path $PclDir 'Custom.xaml'
+
+# 先备份原主页：必须在停止旧后端之前做，因为 --stop 会把主页重写成「服务未运行」快照
 if (Test-Path $custom) {
     $existing = ""
     try { $existing = Get-Content $custom -Raw -Encoding UTF8 } catch { }
@@ -125,8 +138,17 @@ if (Test-Path $custom) {
         Write-Host "现有主页已由下载中心生成，跳过备份。" -ForegroundColor DarkGray
     }
 }
-$bootstrapSrc = Join-Path $scriptDir 'PCL\Custom.xaml'
-if (Test-Path $bootstrapSrc) { Copy-Item $bootstrapSrc $custom -Force }
+
+New-Item -ItemType Directory -Force -Path $target | Out-Null
+Stop-ExistingBackend (Join-Path $target 'PCLDownloadCenter.exe')
+Copy-PluginFiles $src $target
+
+# 写入引导页 Custom.xaml（后端运行后会重写为功能主页）
+$bootstrapSrc = Join-Path $scriptDir 'bootstrap\Custom.xaml'
+if (-not (Test-Path $bootstrapSrc)) { $bootstrapSrc = Join-Path $scriptDir 'PCL\Custom.xaml' }
+# 发布包就在 PCL 文件夹里时，引导页和目标主页是同一个文件，无需复制
+$bootstrapIsCustom = (Test-Path $bootstrapSrc) -and ([System.IO.Path]::GetFullPath($bootstrapSrc) -ieq [System.IO.Path]::GetFullPath($custom))
+if ((Test-Path $bootstrapSrc) -and (-not $bootstrapIsCustom)) { Copy-Item $bootstrapSrc $custom -Force }
 
 # 开启“使用本地自定义主页”
 $setupIni = Join-Path $PclDir 'Setup.ini'

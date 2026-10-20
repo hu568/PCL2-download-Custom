@@ -9,7 +9,7 @@ namespace PCLDownloadCenter
     <div class="brand">
       <div class="logo">PCL</div>
       <div class="brand-text">
-        <div class="brand-title">PCL 下载中心</div>
+        <div class="brand-title">{{APPNAME}}</div>
         <div class="brand-sub" id="brandSub">正在连接本地服务…</div>
       </div>
     </div>
@@ -39,7 +39,7 @@ namespace PCLDownloadCenter
   <!-- ============ 首页 ============ -->
   <section class="view active" id="view-home">
     <div class="hero">
-      <h1>PCL 下载中心</h1>
+      <h1>{{APPNAME}}</h1>
       <p>为 PCL2 2.99 补回原版游戏 / 加载器 / 整合包安装能力。任务在后台进行，进度会实时显示在这里。</p>
       <div class="hero-actions">
         <button class="btn" id="homeInstallRelease" data-act="home-install-release">安装最新正式版</button>

@@ -24,11 +24,11 @@ namespace PCLDownloadCenter
                 sb.Append("<meta charset=\"utf-8\">\n");
                 sb.Append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
                 sb.Append("<meta name=\"color-scheme\" content=\"light\">\n");
-                sb.Append("<meta name=\"description\" content=\"PCL 下载中心：原版游戏 / 加载器 / 整合包安装\">\n");
-                sb.Append("<title>PCL 下载中心</title>\n");
+                sb.Append("<meta name=\"description\" content=\"" + App.Name + "：原版游戏 / 加载器 / 整合包安装\">\n");
+                sb.Append("<title>" + App.Name + "</title>\n");
                 sb.Append("<style>\n").Append(UiCss.Text).Append("\n</style>\n");
                 sb.Append("</head>\n<body>\n");
-                sb.Append(UiHtml.Body).Append("\n");
+                sb.Append(UiHtml.Body.Replace("{{APPNAME}}", App.Name)).Append("\n");
                 sb.Append("<script>\n").Append(UiJs.Text).Append("\n</script>\n");
                 sb.Append("</body>\n</html>");
                 _index = sb.ToString();

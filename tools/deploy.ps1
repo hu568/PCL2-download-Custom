@@ -15,6 +15,12 @@ Copy-Item $exe $Target -Force
 $Newtonsoft = Join-Path $build 'Newtonsoft.Json.dll'
 if (Test-Path $Newtonsoft) { Copy-Item $Newtonsoft $Target -Force }
 
+# 许可与第三方声明（与发布包一致，随 exe 一起部署）
+foreach ($lf in @('LICENSE','LICENCE-PCL.md','THIRD-PARTY-NOTICES.md')) {
+    $lp = Join-Path $root $lf
+    if (Test-Path $lp) { Copy-Item $lp $Target -Force }
+}
+
 $cfg = Join-Path $Target 'config.json'
 if (-not (Test-Path $cfg)) {
     @'

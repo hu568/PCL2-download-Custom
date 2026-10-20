@@ -45,8 +45,8 @@ namespace PCLDownloadCenter
                 {
                     try
                     {
-                        MessageBox.Show("PCL 下载中心启动失败：\n\n" + ex.Message + "\n\n日志：" + (App.Log == null ? "" : App.Log.LogFile),
-                            "PCL 下载中心", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(App.Name + " 启动失败：\n\n" + ex.Message + "\n\n日志：" + (App.Log == null ? "" : App.Log.LogFile),
+                            App.Name, MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                     catch { }
                 }

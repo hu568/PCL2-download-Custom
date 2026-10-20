@@ -202,9 +202,10 @@ namespace PCLDownloadCenter
         public const string Pack = "pack";
         public const string Task = "task";
         public const string Settings = "settings";
+        public const string About = "about";
 
         /// <summary>全部视图（顺序即顶栏按钮顺序）。</summary>
-        public static readonly string[] Views = { Home, Vanilla, Loader, Pack, Task, Settings };
+        public static readonly string[] Views = { Home, Vanilla, Loader, Pack, Task, Settings, About };
 
         /// <summary>当前视图变量（供 CLIS 与调试使用）。</summary>
         public const string ViewVar = "DCView";
@@ -232,6 +233,7 @@ namespace PCLDownloadCenter
                 case Pack: return "DCVPack";
                 case Task: return "DCVTask";
                 case Settings: return "DCVSettings";
+                case About: return "DCVAbout";
                 default: return "DCVHome";
             }
         }
@@ -247,6 +249,7 @@ namespace PCLDownloadCenter
                 case Pack: return "整合包";
                 case Task: return "任务";
                 case Settings: return "设置";
+                case About: return "关于";
                 default: return view;
             }
         }
