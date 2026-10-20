@@ -56,9 +56,11 @@ PCL 2.99（官方 exe，未修改）
 2. **下载源**：默认官方；可切 BMCLAPI。失败自动回退镜像；Forge/NeoForge 安装器走 PCL 内嵌补丁安装器
    （`com.bangbang93.ForgeInstaller`，从 PCL 程序资源的 `PCL.Resources/ForgeInstaller` 提取，注入 BMCLAPI maven 镜像），
    失败再回退“预取依赖库 + 官方 installer --installClient”。
-3. **整合包实例**：`versions/<实例名>/<实例名>.json` 写 `id/inheritsFrom/type/clientVersion/libraries:[]`
-   （`libraries:[]` 必须存在，否则 PCL 的 inheritsFrom 合并会取到父级数组导致异常）；
-   实例隔离配置写入 `versions/<实例名>/PCL/Setup.ini`（逐键合并，不动全局配置）。
+3. **整合包实例（单版本）**：原版与加载器先装进 `<scratch>\stage\versions` 临时目录，再合并成一个独立版本
+   `versions/<实例名>/<实例名>.json`（以原版 JSON 为底合并加载器 JSON、数组拼接、加载器项覆盖；去掉 `inheritsFrom`/`jar`，
+   `id` 写实例名、保留 `clientVersion`），原版客户端 jar 复制为 `<实例名>.jar`，最后删除临时目录；
+   因此 `versions` 下只剩整合包一个版本，不再额外产生原版/加载器目录。整合包安装时 Forge/NeoForge 安装器改在
+   `<scratch>\mc-stage` 暂存目录运行。实例隔离配置写入 `versions/<实例名>/PCL/Setup.ini`（逐键合并，不动全局配置）。
 4. **主页稳定性**：生成前 XmlReader 校验；节点数 < 400、体积 ~40KB；写入用临时文件 + Replace 原子替换；
    内容无变化不落盘，避免 PCL 无意义重建。
 5. **实时性**：Web UI 用 SSE 推送任务进度/日志；主页受 PCL 限制只能“点刷新”，因此后端在任务变化时节流（1.5s）重写文件，用户点一次即可看到最新进度。

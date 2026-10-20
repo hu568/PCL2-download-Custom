@@ -95,14 +95,20 @@ namespace PCLDownloadCenter
                     ctx.Info("未找到 PCL 内嵌补丁安装器，将使用官方安装器流程");
             }
 
-            // 4. 安装目录（MC 路径含空格时改用暂存目录，装完再合并）
-            bool staged = ctx.McDir.IndexOf(' ') >= 0 || ctx.McDir.IndexOf('\t') >= 0;
+            // 4. 安装目录：整合包安装（ctx.VersionsDirOverride != null）或 MC 路径含空格时改用暂存目录，
+            //    装完再把依赖库合并回真实 MC 目录。整合包安装必须暂存，否则安装器会在真实 versions 下
+            //    生成独立的加载器版本目录（整合包应当只产生一个版本）。
+            bool staged = !string.IsNullOrWhiteSpace(ctx.VersionsDirOverride) ||
+                          ctx.McDir.IndexOf(' ') >= 0 || ctx.McDir.IndexOf('\t') >= 0;
             string installDir = ctx.McDir;
             if (staged)
             {
                 installDir = ctx.Scratch("mc-stage");
-                FileUtil.EnsureDir(installDir);
-                ctx.Info("MC 目录包含空格，使用暂存目录安装：" + installDir);
+                FileUtil.EnsureDir(Path.Combine(installDir, "versions"));
+                ctx.Info("使用暂存目录运行 " + name + " 安装器：" + installDir +
+                         (string.IsNullOrWhiteSpace(ctx.VersionsDirOverride)
+                             ? "（MC 目录含空格）"
+                             : "（整合包安装，避免在 versions 下留下独立加载器版本）"));
             }
             LoaderCommon.EnsureLauncherProfiles(ctx, installDir);
 

@@ -58,9 +58,28 @@ namespace PCLDownloadCenter
         public Action<string, double> ProgressCallback { get; set; }
         public Action<string> InfoCallback { get; set; }
 
-        public string VersionsDir => System.IO.Path.Combine(McDir, "versions");
+        /// <summary>
+        /// 覆盖 versions 目录。整合包安装时把原版与加载器先装到临时目录，合并成单个实例后再删除，
+        /// 避免 .minecraft\versions 下残留独立的原版 / 加载器版本（PCL 自己的整合包安装也只留一个版本）。
+        /// </summary>
+        public string VersionsDirOverride { get; set; }
+
+        public string VersionsDir => string.IsNullOrWhiteSpace(VersionsDirOverride)
+            ? System.IO.Path.Combine(McDir, "versions")
+            : VersionsDirOverride;
         public string LibrariesDir => System.IO.Path.Combine(McDir, "libraries");
         public string AssetsDir => System.IO.Path.Combine(McDir, "assets");
+
+        /// <summary>浅拷贝一份上下文，仅替换 versions 目录（共用日志、下载器、进度回调与取消令牌）。</summary>
+        public InstallContext WithVersionsDir(string versionsDir)
+        {
+            return new InstallContext
+            {
+                Cfg = Cfg, Log = Log, Dl = Dl, Ct = Ct, McDir = McDir, ScratchDir = ScratchDir,
+                ProgressCallback = ProgressCallback, InfoCallback = InfoCallback,
+                VersionsDirOverride = versionsDir
+            };
+        }
 
         /// <summary>上报阶段进度；ratio 取 0~1。</summary>
         public void Progress(string phase, double ratio)

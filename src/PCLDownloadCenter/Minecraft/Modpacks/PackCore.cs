@@ -45,7 +45,10 @@ namespace PCLDownloadCenter
         public string Description;
     }
 
-    /// <summary>原版 + 加载器安装结果。</summary>
+    /// <summary>
+    /// 原版 + 加载器的安装结果（合并成单版本实例之前的中间状态）。
+    /// 两者都装在 <see cref="StageVersionsDir"/> 这个临时 versions 目录里，合并完成后由 <see cref="PackCore.CleanupStage"/> 删除。
+    /// </summary>
     internal sealed class BaseInstall
     {
         public string MinecraftVersion;
@@ -54,12 +57,13 @@ namespace PCLDownloadCenter
         public string LoaderVersion;
         public string LoaderId;
         public bool LoaderInstalled;
-
-        /// <summary>实例 JSON 的 inheritsFrom：有加载器时用加载器版本，否则用原版版本。</summary>
-        public string InheritsFrom
-        {
-            get { return string.IsNullOrEmpty(LoaderId) ? VanillaId : LoaderId; }
-        }
+        /// <summary>临时根目录（<c>&lt;scratch&gt;\stage</c>），随任务临时目录一起清理。</summary>
+        public string StageRoot;
+        /// <summary>临时 versions 目录（<c>&lt;scratch&gt;\stage\versions</c>）。</summary>
+        public string StageVersionsDir;
+        public string VanillaJsonPath;
+        public string VanillaJarPath;
+        public string LoaderJsonPath;
     }
 
     /// <summary>
@@ -160,40 +164,228 @@ namespace PCLDownloadCenter
         // ---------------- 实例文件 ----------------
 
         /// <summary>
-        /// 生成 PCL 可识别的实例 JSON（与 PCL 2.99 的实例合并逻辑逐条对齐）：
-        /// 1. libraries 数组必须存在：PCL 合并 inheritsFrom 时会先 DeepClone 子 JSON 的 libraries
-        ///    再拼接父版本依赖（子在前、父在后），缺失会导致合并失败。
-        /// 2. clientVersion 写原版版本号：PCL 的 McVersion.GetVanillaName 优先读该字段，
-        ///    保证 Info/State 不依赖对加载器 JSON 的猜测。
-        /// 3. jar 写原版版本 id（若存在）：PCL 的 McLibListGet 优先用该字段定位客户端主 jar。
-        ///    Forge/NeoForge 1.17+ 时 PCL 不会沿 inheritsFrom 寻找原版 jar，而是期望实例目录下有
-        ///    &lt;实例名&gt;.jar；写 jar 字段可直接复用 versions\&lt;原版&gt;\&lt;原版&gt;.jar，避免启动时再补下载约 20MB。
-        /// 4. id/type/time/releaseTime 与 PCL 自己写的一致；arguments/assetIndex/downloads/javaVersion/
-        ///    mainClass 等均由父版本合并提供，这里不要写空值覆盖。
+        /// 生成「单版本」整合包实例：把原版 JSON 与加载器 JSON 合并成一个独立版本 JSON，
+        /// 并把原版客户端 jar 复制为 versions\&lt;实例名&gt;\&lt;实例名&gt;.jar。
+        /// 合并规则与 PCL 自己的整合包安装（ref/PCL ModDownloadLib.vb MergeJson）逐条一致：
+        /// 原版 JSON 为底 → 合并加载器 JSON（数组拼接、加载器项覆盖）→ 去掉 inheritsFrom / jar →
+        /// id 写实例名；旧版（1.6~1.12）的 minecraftArguments 先拼接再去重。
+        /// 这样 versions 下只会留下整合包这一个目录，不会额外产生原版与加载器两个独立版本。
+        /// 另外保留 clientVersion：PCL 的 McVersion.GetVanillaName 优先读该字段，版本号识别不靠猜。
         /// </summary>
-        public static void WriteInstanceJson(InstallContext ctx, string instanceDir, string instanceName,
-            string inheritsFrom, string mcVersion, string modpackVersion, string primaryJar = null, string type = "release")
+        public static void WriteMergedInstance(InstallContext ctx, BaseInstall baseInfo, string instanceDir,
+            string instanceName, string modpackVersion, string type = null)
         {
+            if (baseInfo == null) throw new ArgumentNullException("baseInfo");
             FileUtil.EnsureDir(instanceDir);
             if (ctx != null && instanceDir.Length > 200)
                 ctx.Warn("实例路径较长（" + instanceDir.Length + " 字符），overrides 中的深层文件可能触及 Windows 路径长度上限；" +
                          "如安装失败请缩短整合包名称或把 .minecraft 放到更短的路径。");
-            var now = DateTime.Now.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
-            var obj = new JObject
+
+            var merged = BuildStandaloneJson(ctx, baseInfo.VanillaJsonPath, baseInfo.VanillaId,
+                baseInfo.LoaderJsonPath, baseInfo.StageVersionsDir);
+            merged["id"] = instanceName;
+            if (!string.IsNullOrWhiteSpace(type)) merged["type"] = type;
+            else if (merged["type"] == null) merged["type"] = "release";
+            if (!string.IsNullOrWhiteSpace(baseInfo.MinecraftVersion)) merged["clientVersion"] = baseInfo.MinecraftVersion;
+            if (!string.IsNullOrEmpty(modpackVersion)) merged["modpackVersion"] = modpackVersion;
+            if (merged["libraries"] == null) merged["libraries"] = new JArray();
+
+            string jsonPath = Path.Combine(instanceDir, instanceName + ".json");
+            FileUtil.WriteAllTextAtomic(jsonPath, merged.ToString(Newtonsoft.Json.Formatting.Indented));
+            if (ctx != null)
+                ctx.Info("已写入合并后的实例 JSON：" + jsonPath + "（原版 " + baseInfo.MinecraftVersion +
+                         (string.IsNullOrWhiteSpace(baseInfo.LoaderId)
+                             ? ""
+                             : " + " + LoaderDisplay(baseInfo.Loader) + " " + baseInfo.LoaderVersion) +
+                         "，无 inheritsFrom）");
+            CopyClientJar(ctx, baseInfo.VanillaJarPath, instanceDir, instanceName);
+        }
+
+        /// <summary>
+        /// 把「已安装的某个版本」转写成独立实例（普通压缩包无法识别版本时的兜底）：
+        /// 合并它的 inheritsFrom 链并复制客户端 jar，使实例不再依赖 versions\&lt;原版&gt; 目录。
+        /// </summary>
+        public static void WriteStandaloneFromInstalled(InstallContext ctx, string versionId, string instanceDir, string instanceName)
+        {
+            if (string.IsNullOrWhiteSpace(versionId)) throw new ArgumentException("缺少版本号");
+            string jsonPath = Path.Combine(ctx.VersionsDir, versionId, versionId + ".json");
+            if (!File.Exists(jsonPath))
+                throw new Exception("找不到已安装的版本 JSON：" + jsonPath);
+            var merged = BuildStandaloneJson(ctx, jsonPath, versionId, null, null);
+            merged["id"] = instanceName;
+            merged["clientVersion"] = versionId;
+            if (merged["type"] == null) merged["type"] = "release";
+            if (merged["libraries"] == null) merged["libraries"] = new JArray();
+            FileUtil.EnsureDir(instanceDir);
+            string target = Path.Combine(instanceDir, instanceName + ".json");
+            FileUtil.WriteAllTextAtomic(target, merged.ToString(Newtonsoft.Json.Formatting.Indented));
+            if (ctx != null) ctx.Info("已写入独立实例 JSON：" + target);
+            var jarRoots = new List<string> { ctx.VersionsDir };
+            CopyClientJar(ctx, FindClientJar(ctx, versionId, jarRoots), instanceDir, instanceName);
+        }
+
+        /// <summary>
+        /// 沿 inheritsFrom 链找出客户端主 jar（jar 通常在链最深的原版版本目录里），
+        /// 其次看 JSON 的 jar 字段；找不到时返回最深一层的推测路径。
+        /// </summary>
+        private static string FindClientJar(InstallContext ctx, string versionId, List<string> searchRoots)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string current = versionId;
+            string candidate = null;
+            for (int depth = 0; depth < 8 && !string.IsNullOrWhiteSpace(current); depth++)
             {
-                ["id"] = instanceName,
-                ["inheritsFrom"] = inheritsFrom,
-                ["type"] = string.IsNullOrEmpty(type) ? "release" : type,
-                ["clientVersion"] = mcVersion,
-                ["time"] = now,
-                ["releaseTime"] = now,
-                ["libraries"] = new JArray()
-            };
-            if (!string.IsNullOrWhiteSpace(primaryJar)) obj["jar"] = primaryJar;
-            if (!string.IsNullOrEmpty(modpackVersion)) obj["modpackVersion"] = modpackVersion;
-            var path = Path.Combine(instanceDir, instanceName + ".json");
-            FileUtil.WriteAllTextAtomic(path, obj.ToString(Newtonsoft.Json.Formatting.Indented));
-            if (ctx != null) ctx.Info("已写入实例 JSON：" + path);
+                if (!seen.Add(current)) break;
+                string jar = Path.Combine(ctx.VersionsDir, current, current + ".jar");
+                candidate = jar;
+                if (File.Exists(jar)) return jar;
+                string jsonPath = FindVersionJson(searchRoots, current);
+                if (jsonPath == null) break;
+                JObject json;
+                try { json = LoaderCommon.ReadJson(jsonPath); }
+                catch { break; }
+                var jarField = JsonUtil.Str(json, "jar", null);
+                if (!string.IsNullOrWhiteSpace(jarField))
+                {
+                    string jarPath = Path.Combine(ctx.VersionsDir, jarField, jarField + ".jar");
+                    candidate = jarPath;
+                    if (File.Exists(jarPath)) return jarPath;
+                }
+                current = JsonUtil.Str(json, "inheritsFrom", null);
+            }
+            return candidate;
+        }
+
+        /// <summary>把原版 JSON 与加载器 JSON（含各自的 inheritsFrom 链）合并成一个独立版本 JSON。</summary>
+        public static JObject BuildStandaloneJson(InstallContext ctx, string vanillaJsonPath, string vanillaId,
+            string loaderJsonPath, string stageVersionsDir)
+        {
+            if (string.IsNullOrWhiteSpace(vanillaJsonPath) || !File.Exists(vanillaJsonPath))
+                throw new Exception("找不到原版版本 JSON：" + vanillaJsonPath);
+
+            var roots = new List<string>();
+            if (!string.IsNullOrWhiteSpace(stageVersionsDir)) roots.Add(stageVersionsDir);
+            if (ctx != null && !string.IsNullOrWhiteSpace(ctx.VersionsDir)) roots.Add(ctx.VersionsDir);
+
+            var argsParts = new List<string>();
+            var merged = LoadWithInherits(ctx, vanillaJsonPath, vanillaId, roots,
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase), argsParts, 0, false);
+            if (!string.IsNullOrWhiteSpace(loaderJsonPath) && File.Exists(loaderJsonPath))
+            {
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (!string.IsNullOrWhiteSpace(vanillaId)) seen.Add(vanillaId);
+                // 加载器 JSON 的 time/releaseTime 不覆盖原版的（与 PCL MergeJson 一致，避免 PCL 显示 1970 年）
+                var patch = LoadWithInherits(ctx, loaderJsonPath, vanillaId, roots, seen, argsParts, 0, true);
+                merged.Merge(patch); // 数组按 PCL 的方式拼接：原版在前、加载器在后
+            }
+
+            merged.Remove("_comment_");
+            merged.Remove("inheritsFrom");
+            merged.Remove("jar");
+            if (argsParts.Count > 0) merged["minecraftArguments"] = CombineArguments(argsParts);
+            return merged;
+        }
+
+        /// <summary>读取版本 JSON 并合并它的 inheritsFrom 父版本（父级在下、本级覆盖在上）。</summary>
+        private static JObject LoadWithInherits(InstallContext ctx, string jsonPath, string stopId,
+            List<string> searchRoots, HashSet<string> seen, List<string> argsParts, int depth, bool stripTime)
+        {
+            var json = LoaderCommon.ReadJson(jsonPath);
+            var args = JsonUtil.Str(json, "minecraftArguments", null);
+            if (!string.IsNullOrWhiteSpace(args)) argsParts.Add(args);
+            var inherit = JsonUtil.Str(json, "inheritsFrom", null);
+            if (stripTime)
+            {
+                json.Remove("time");
+                json.Remove("releaseTime");
+            }
+            json.Remove("inheritsFrom");
+            if (string.IsNullOrWhiteSpace(inherit)) return json;
+            if (!string.IsNullOrWhiteSpace(stopId) && string.Equals(inherit, stopId, StringComparison.OrdinalIgnoreCase))
+                return json;
+            if (depth >= 8 || !seen.Add(inherit))
+            {
+                if (ctx != null) ctx.Warn("版本继承链过深或出现重复，已停止合并：" + inherit);
+                return json;
+            }
+            string parentPath = FindVersionJson(searchRoots, inherit);
+            if (parentPath == null)
+            {
+                if (ctx != null) ctx.Warn("找不到继承版本 " + inherit + " 的 JSON，合并结果可能缺少父级依赖");
+                return json;
+            }
+            var parent = LoadWithInherits(ctx, parentPath, stopId, searchRoots, seen, argsParts, depth + 1, true);
+            parent.Merge(json);
+            return parent;
+        }
+
+        private static string FindVersionJson(List<string> searchRoots, string id)
+        {
+            if (string.IsNullOrWhiteSpace(id) || searchRoots == null) return null;
+            foreach (var root in searchRoots)
+            {
+                if (string.IsNullOrWhiteSpace(root)) continue;
+                try
+                {
+                    string path = Path.Combine(root, id, id + ".json");
+                    if (File.Exists(path)) return path;
+                }
+                catch { }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 旧版版本用 minecraftArguments 字符串描述启动参数，多个来源需要拼接后去重
+        /// （与 PCL MergeJson 的处理一致：紧跟 - 开头的参数与其值合并为一个词，再去重）。
+        /// </summary>
+        private static string CombineArguments(List<string> parts)
+        {
+            var tokens = new List<string>();
+            foreach (var part in parts)
+            {
+                if (string.IsNullOrWhiteSpace(part)) continue;
+                foreach (var raw in part.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var token = raw.Trim();
+                    if (token.Length == 0) continue;
+                    if (!token.StartsWith("-", StringComparison.Ordinal) && tokens.Count > 0)
+                    {
+                        var last = tokens[tokens.Count - 1];
+                        if (last.StartsWith("-", StringComparison.Ordinal) && last.IndexOf(' ') < 0)
+                        {
+                            tokens[tokens.Count - 1] = last + " " + token;
+                            continue;
+                        }
+                    }
+                    tokens.Add(token);
+                }
+            }
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var result = new List<string>();
+            foreach (var token in tokens)
+                if (seen.Add(token)) result.Add(token);
+            return string.Join(" ", result.ToArray());
+        }
+
+        /// <summary>把原版客户端 jar 复制成 &lt;实例名&gt;.jar（合并后的版本没有 jar 字段，PCL 按实例名找主 jar）。</summary>
+        private static void CopyClientJar(InstallContext ctx, string sourceJar, string instanceDir, string instanceName)
+        {
+            if (string.IsNullOrWhiteSpace(sourceJar) || !File.Exists(sourceJar))
+            {
+                if (ctx != null) ctx.Warn("未找到原版客户端主文件（" + (sourceJar ?? "null") + "），PCL 启动时会尝试自行补全");
+                return;
+            }
+            string target = Path.Combine(instanceDir, instanceName + ".jar");
+            try
+            {
+                File.Copy(sourceJar, target, true);
+                if (ctx != null) ctx.Info("已复制客户端主文件：" + target + "（" + FormatSize(FileUtil.SizeOf(target)) + "）");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("复制客户端主文件失败：" + ex.Message, ex);
+            }
         }
 
         /// <summary>
@@ -547,48 +739,91 @@ namespace PCLDownloadCenter
         }
 
         /// <summary>
-        /// 确保整合包依赖的原版游戏与加载器已安装。
+        /// 把整合包依赖的原版与加载器先装进临时 versions 目录，返回中间结果；
+        /// 合并成单版本实例后必须调用 <see cref="CleanupStage"/> 删除临时目录。
         /// lo~hi 为本次安装占用的总进度区间。
         /// </summary>
-        public static async System.Threading.Tasks.Task<BaseInstall> EnsureBaseAndLoaderAsync(
+        public static async System.Threading.Tasks.Task<BaseInstall> InstallBaseStagedAsync(
             InstallContext ctx, string mcVersion, string loader, string loaderVersion, double lo, double hi)
         {
+            if (ctx == null) throw new ArgumentNullException("ctx");
             if (string.IsNullOrWhiteSpace(mcVersion))
                 throw new Exception("整合包未提供 Minecraft 版本信息，无法安装");
 
             mcVersion = mcVersion.Trim();
-            var result = new BaseInstall { MinecraftVersion = mcVersion, Loader = (loader ?? "").Trim().ToLowerInvariant(), LoaderVersion = loaderVersion };
+            var result = new BaseInstall
+            {
+                MinecraftVersion = mcVersion,
+                Loader = (loader ?? "").Trim().ToLowerInvariant(),
+                LoaderVersion = loaderVersion
+            };
             var hasLoader = !string.IsNullOrWhiteSpace(result.Loader);
+            if (hasLoader &&
+                (string.Equals(result.Loader, "optifine", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(result.Loader, "liteloader", StringComparison.OrdinalIgnoreCase)))
+                throw new Exception("整合包所需的 " + LoaderDisplay(result.Loader) + " 加载器暂不支持，请改用其他整合包");
             var vanillaHi = hasLoader ? lo + (hi - lo) * 0.7 : hi;
 
-            // 用 VanillaInstaller.EnsureInstalledAsync 而不是只判断 json 是否存在：
-            // 它会同时校验版本 JSON 与客户端 jar，避免“上次安装中断留下有 json 无 jar”被误判为已安装。
-            ctx.Info("检查整合包依赖的原版游戏 " + mcVersion + "……");
-            using (new ScaledProgress(ctx, lo, vanillaHi))
+            // 原版与加载器都装在临时 versions 目录里，合并成单版本实例后整目录删除；
+            // 这样 .minecraft\versions 下不会残留原版 / 加载器两个独立版本（只留整合包一个版本）。
+            result.StageRoot = ctx.Scratch("stage");
+            result.StageVersionsDir = Path.Combine(result.StageRoot, "versions");
+            FileUtil.EnsureDir(result.StageVersionsDir);
+            var stageCtx = ctx.WithVersionsDir(result.StageVersionsDir);
+            try
             {
-                result.VanillaId = await VanillaInstaller.EnsureInstalledAsync(ctx, mcVersion).ConfigureAwait(false);
-            }
-            if (string.IsNullOrWhiteSpace(result.VanillaId)) result.VanillaId = mcVersion;
-            ctx.Info("原版游戏已就绪：" + result.VanillaId);
-
-            if (hasLoader)
-            {
-                if (string.Equals(result.Loader, "optifine", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(result.Loader, "liteloader", StringComparison.OrdinalIgnoreCase))
-                    throw new Exception("整合包所需的 " + LoaderDisplay(result.Loader) + " 加载器暂不支持，请改用其他整合包");
-
-                ctx.Info("正在安装 " + LoaderDisplay(result.Loader) + " 加载器" +
-                         (string.IsNullOrWhiteSpace(loaderVersion) ? "（自动选择版本）" : " " + loaderVersion) + "……");
-                using (new ScaledProgress(ctx, vanillaHi, hi))
+                ctx.Info("原版与加载器将先安装到临时目录并合并为单个实例，不额外保留独立版本");
+                ctx.Info("开始安装整合包依赖的原版游戏 " + mcVersion + "……");
+                using (new ScaledProgress(stageCtx, lo, vanillaHi))
                 {
-                    result.LoaderId = await LoaderRegistry.InstallAsync(ctx, result.Loader, mcVersion, loaderVersion).ConfigureAwait(false);
+                    result.VanillaId = await VanillaInstaller.InstallAsync(stageCtx, mcVersion).ConfigureAwait(false);
                 }
-                if (string.IsNullOrWhiteSpace(result.LoaderId))
-                    throw new Exception(LoaderDisplay(result.Loader) + " 加载器安装未返回版本号");
-                result.LoaderInstalled = true;
-                ctx.Info(LoaderDisplay(result.Loader) + " 加载器安装完成：" + result.LoaderId);
+                if (string.IsNullOrWhiteSpace(result.VanillaId)) result.VanillaId = mcVersion;
+                result.VanillaJsonPath = Path.Combine(result.StageVersionsDir, result.VanillaId, result.VanillaId + ".json");
+                result.VanillaJarPath = Path.Combine(result.StageVersionsDir, result.VanillaId, result.VanillaId + ".jar");
+                ctx.Info("原版游戏已就绪（临时目录）：" + result.VanillaId);
+
+                if (hasLoader)
+                {
+                    ctx.Info("正在安装 " + LoaderDisplay(result.Loader) + " 加载器" +
+                             (string.IsNullOrWhiteSpace(loaderVersion) ? "（自动选择版本）" : " " + loaderVersion) + "……");
+                    using (new ScaledProgress(stageCtx, vanillaHi, hi))
+                    {
+                        result.LoaderId = await LoaderRegistry.InstallAsync(stageCtx, result.Loader, mcVersion, loaderVersion).ConfigureAwait(false);
+                    }
+                    if (string.IsNullOrWhiteSpace(result.LoaderId))
+                        throw new Exception(LoaderDisplay(result.Loader) + " 加载器安装未返回版本号");
+                    result.LoaderInstalled = true;
+                    result.LoaderJsonPath = Path.Combine(result.StageVersionsDir, result.LoaderId, result.LoaderId + ".json");
+                    if (!File.Exists(result.LoaderJsonPath))
+                        throw new Exception("加载器安装后未找到版本 JSON：" + result.LoaderJsonPath);
+                    ctx.Info(LoaderDisplay(result.Loader) + " 加载器安装完成：" + result.LoaderId);
+                }
+                return result;
             }
-            return result;
+            catch
+            {
+                CleanupStage(ctx, result);
+                throw;
+            }
+        }
+
+        /// <summary>删除整合包安装用的临时 versions 目录（原版 / 加载器已合并进实例，不再需要）。</summary>
+        public static void CleanupStage(InstallContext ctx, BaseInstall baseInfo)
+        {
+            if (baseInfo == null || string.IsNullOrWhiteSpace(baseInfo.StageRoot)) return;
+            try
+            {
+                if (Directory.Exists(baseInfo.StageRoot))
+                {
+                    FileUtil.SafeDeleteDir(baseInfo.StageRoot);
+                    if (ctx != null) ctx.Info("已清理临时安装目录：" + baseInfo.StageRoot);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (ctx != null) ctx.Warn("清理临时安装目录失败，可手动删除：" + baseInfo.StageRoot + "（" + ex.Message + "）");
+            }
         }
 
         // ---------------- 进度 ----------------

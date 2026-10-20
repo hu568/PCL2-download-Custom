@@ -39,7 +39,7 @@ namespace PCLDownloadCenter
                 throw new Exception("HMCL 整合包缺少 gameVersion（Minecraft 版本）信息");
 
             ctx.Info("整合包：" + rawName + "（HMCL 格式，MC " + gameVersion + "）");
-            var baseInstall = await PackCore.EnsureBaseAndLoaderAsync(ctx, gameVersion, null, null, 0.12, 0.70)
+            var baseInstall = await PackCore.InstallBaseStagedAsync(ctx, gameVersion, null, null, 0.12, 0.70)
                 .ConfigureAwait(false);
 
             var instanceName = PackCore.AllocateInstanceName(ctx, rawName);
@@ -50,7 +50,7 @@ namespace PCLDownloadCenter
                 FileUtil.EnsureDir(instanceDir);
                 created = true;
                 PackCore.MarkInstalling(instanceDir);
-                PackCore.WriteInstanceJson(ctx, instanceDir, instanceName, baseInstall.InheritsFrom, gameVersion, versionLabel, baseInstall.VanillaId);
+                PackCore.WriteMergedInstance(ctx, baseInstall, instanceDir, instanceName, versionLabel);
                 ctx.Progress("解压整合包文件", 0.72);
                 var count = ZipUtil.ExtractPrefix(archivePath, baseFolder + "minecraft/", instanceDir);
                 if (count == 0) count = ZipUtil.ExtractPrefix(archivePath, baseFolder, instanceDir);
@@ -61,7 +61,7 @@ namespace PCLDownloadCenter
 
                 await PackCore.TrySetIconAsync(ctx, instanceDir, info.IconUrl).ConfigureAwait(false);
                 PackCore.FinishInstalling(instanceDir);
-                ctx.Info("安装完成：versions/" + instanceName);
+                ctx.Info("安装完成：versions/" + instanceName + "（已合并原版，versions 下只有这一个版本）");
                 ctx.Progress("整合包安装完成", 1.0);
                 return instanceName;
             }
@@ -69,6 +69,10 @@ namespace PCLDownloadCenter
             {
                 if (created) PackCore.Rollback(ctx, instanceDir, instanceName);
                 throw;
+            }
+            finally
+            {
+                PackCore.CleanupStage(ctx, baseInstall);
             }
         }
 
@@ -125,7 +129,7 @@ namespace PCLDownloadCenter
 
             ctx.Info("整合包：" + rawName + "（MultiMC 格式，MC " + mcVersion +
                      (loader == null ? "" : "，" + PackCore.LoaderDisplay(loader) + " " + loaderVersion) + "）");
-            var baseInstall = await PackCore.EnsureBaseAndLoaderAsync(ctx, mcVersion, loader, loaderVersion, 0.12, 0.70)
+            var baseInstall = await PackCore.InstallBaseStagedAsync(ctx, mcVersion, loader, loaderVersion, 0.12, 0.70)
                 .ConfigureAwait(false);
 
             var instanceName = PackCore.AllocateInstanceName(ctx, rawName);
@@ -136,7 +140,7 @@ namespace PCLDownloadCenter
                 FileUtil.EnsureDir(instanceDir);
                 created = true;
                 PackCore.MarkInstalling(instanceDir);
-                PackCore.WriteInstanceJson(ctx, instanceDir, instanceName, baseInstall.InheritsFrom, mcVersion, null, baseInstall.VanillaId);
+                PackCore.WriteMergedInstance(ctx, baseInstall, instanceDir, instanceName, null);
                 ctx.Progress("解压整合包文件", 0.72);
                 var count = ZipUtil.ExtractPrefix(archivePath, baseFolder + "minecraft/", instanceDir);
                 if (count == 0) count = ZipUtil.ExtractPrefix(archivePath, baseFolder, instanceDir);
@@ -147,7 +151,7 @@ namespace PCLDownloadCenter
 
                 await PackCore.TrySetIconAsync(ctx, instanceDir, info.IconUrl).ConfigureAwait(false);
                 PackCore.FinishInstalling(instanceDir);
-                ctx.Info("安装完成：versions/" + instanceName);
+                ctx.Info("安装完成：versions/" + instanceName + "（已合并原版与加载器，versions 下只有这一个版本）");
                 ctx.Progress("整合包安装完成", 1.0);
                 return instanceName;
             }
@@ -155,6 +159,10 @@ namespace PCLDownloadCenter
             {
                 if (created) PackCore.Rollback(ctx, instanceDir, instanceName);
                 throw;
+            }
+            finally
+            {
+                PackCore.CleanupStage(ctx, baseInstall);
             }
         }
 
@@ -218,7 +226,7 @@ namespace PCLDownloadCenter
                 FileUtil.EnsureDir(instanceDir);
                 created = true;
                 PackCore.MarkInstalling(instanceDir);
-                PackCore.WriteInstanceJson(ctx, instanceDir, instanceName, fallback, fallback, null, fallback);
+                PackCore.WriteStandaloneFromInstalled(ctx, fallback, instanceDir, instanceName);
                 ctx.Progress("解压压缩包到实例目录", 0.60);
                 var prefix = singleTop == null ? "" : singleTop + "/";
                 var count = ZipUtil.ExtractPrefix(archivePath, prefix, instanceDir);
@@ -307,7 +315,7 @@ namespace PCLDownloadCenter
                     var fallback = PackCore.FindInstalledVanilla(ctx);
                     if (string.IsNullOrWhiteSpace(fallback))
                         throw new Exception("压缩包内的实例缺少版本 JSON，且未找到已安装的原版游戏");
-                    PackCore.WriteInstanceJson(ctx, instanceDir, instanceName, fallback, fallback, null, fallback);
+                    PackCore.WriteStandaloneFromInstalled(ctx, fallback, instanceDir, instanceName);
                     PackCore.WriteInstanceSetup(instanceDir, fallback, "普通压缩包（内嵌实例缺少 JSON）", info, null);
                 }
 

@@ -103,11 +103,11 @@ namespace PCLDownloadCenter
             if (!string.IsNullOrWhiteSpace(versionLabel)) ctx.Info("整合包版本号：" + versionLabel);
             ctx.Info("整合包声明了 " + requested.Count + " 个待下载文件");
 
-            // ---------- 安装原版 + 加载器 ----------
-            var baseInstall = await PackCore.EnsureBaseAndLoaderAsync(ctx, mcVersion, loader, loaderVersion, 0.12, 0.58)
+            // ---------- 安装原版 + 加载器（装到临时目录，稍后合并成单版本） ----------
+            var baseInstall = await PackCore.InstallBaseStagedAsync(ctx, mcVersion, loader, loaderVersion, 0.12, 0.58)
                 .ConfigureAwait(false);
 
-            // ---------- 创建实例 ----------
+            // ---------- 创建实例（原版 + 加载器合并为一个版本 JSON + 客户端 jar） ----------
             var instanceName = PackCore.AllocateInstanceName(ctx, rawName);
             var instanceDir = Path.Combine(ctx.VersionsDir, instanceName);
             var created = false;
@@ -116,7 +116,7 @@ namespace PCLDownloadCenter
                 FileUtil.EnsureDir(instanceDir);
                 created = true;
                 PackCore.MarkInstalling(instanceDir);
-                PackCore.WriteInstanceJson(ctx, instanceDir, instanceName, baseInstall.InheritsFrom, mcVersion, versionLabel, baseInstall.VanillaId);
+                PackCore.WriteMergedInstance(ctx, baseInstall, instanceDir, instanceName, versionLabel);
 
                 // ---------- overrides ----------
                 ctx.Progress("解压整合包覆写文件", 0.60);
@@ -194,7 +194,7 @@ namespace PCLDownloadCenter
                 PackCore.FinishInstalling(instanceDir);
 
                 var jarCount = CountJars(Path.Combine(instanceDir, "mods"));
-                ctx.Info("安装完成：versions/" + instanceName + "（mods 目录 " + jarCount + " 个 jar 文件）");
+                ctx.Info("安装完成：versions/" + instanceName + "（mods 目录 " + jarCount + " 个 jar 文件；已合并原版与加载器，versions 下只有这一个版本）");
                 ctx.Progress("整合包安装完成", 1.0);
                 return instanceName;
             }
@@ -202,6 +202,10 @@ namespace PCLDownloadCenter
             {
                 if (created) PackCore.Rollback(ctx, instanceDir, instanceName);
                 throw;
+            }
+            finally
+            {
+                PackCore.CleanupStage(ctx, baseInstall);
             }
         }
 
