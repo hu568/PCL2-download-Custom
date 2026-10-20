@@ -477,7 +477,7 @@ namespace PCLDownloadCenter
             HX.Open(sb, "StackPanel", HX.A("Orientation", "Horizontal"), HX.A("Margin", "0,10,0,0"));
             HX.Button(sb, "赞助 PCL 作者", "打开网页", "https://meloong.com/afd/a/LTCat", "Highlight", 150, 32,
                 null, "前往爱发电支持 PCL 原作者龙腾猫跃");
-            HX.Button(sb, "PCL 开源代码", "打开网页", "https://github.com/Hex-Dragon/PCL2", null, 140, 32, "8,0,0,0");
+            HX.Button(sb, "PCL GitHub 仓库", "打开网页", "https://github.com/Hex-Dragon/PCL2", null, 150, 32, "8,0,0,0");
             HX.Button(sb, "PCL 分发有限许可", "打开网页", "https://shimo.im/docs/rGrd8pY8xWkt6ryW#anchor-X0bo", null, 160, 32, "8,0,0,0");
             HX.Close(sb, "StackPanel");
             HX.Text(sb, "本插件是第三方基于 PCL 独立进行二次创作的产物，与 PCL 官方无关；名称中的「第三方修改版」即为此标识。",
@@ -489,13 +489,16 @@ namespace PCLDownloadCenter
             CloseCard(sb);
 
             OpenCard(sb, "开源许可");
-            HX.Text(sb, "本插件以 GNU GPL-3.0 发布，源码公开在 github.com/hu568/PCL2-download-Custom。", HX.A("FontSize", "11"));
-            HX.Text(sb, "随包分发的第三方组件：Newtonsoft.Json 13.0.3（MIT）。完整声明见发布包内 LICENSE 与 THIRD-PARTY-NOTICES.md。",
+            HX.Text(sb, "本项目开源仓库（GitHub）：https://github.com/hu568/PCL2-download-Custom", HX.A("FontSize", "11"));
+            HX.Text(sb, "上游 PCL 仓库（GitHub）：https://github.com/Meloong-Git/PCL · https://github.com/Hex-Dragon/PCL2",
+                HX.A("FontSize", "11"), HX.A("Margin", "0,6,0,0"));
+            HX.Text(sb, "本插件以 GNU GPL-3.0 发布，源码即上面的 GitHub 仓库；随包分发的第三方组件为 Newtonsoft.Json 13.0.3（MIT）。完整声明见发布包内 LICENSE 与 THIRD-PARTY-NOTICES.md。",
                 HX.A("FontSize", "11"), HX.A("Margin", "0,6,0,0"));
             HX.Text(sb, "本插件不分发任何 PCL 代码或二进制；安装 Forge / NeoForge 时，会从你本机的 PCL 程序里提取它内嵌的补丁版安装器（与 PCL 自身做法一致）。",
                 HX.A("FontSize", "11"), HX.A("Margin", "0,6,0,0"));
             HX.Open(sb, "StackPanel", HX.A("Orientation", "Horizontal"), HX.A("Margin", "0,10,0,0"));
-            HX.Button(sb, "本项目源码", "打开网页", "https://github.com/hu568/PCL2-download-Custom", "Highlight", 130, 32);
+            HX.Button(sb, "本项目 GitHub 仓库", "打开网页", "https://github.com/hu568/PCL2-download-Custom", "Highlight", 170, 32);
+            HX.Button(sb, "上游 PCL GitHub", "打开网页", "https://github.com/Meloong-Git/PCL", null, 160, 32, "8,0,0,0");
             HX.Close(sb, "StackPanel");
             CloseCard(sb);
             CloseView(sb);

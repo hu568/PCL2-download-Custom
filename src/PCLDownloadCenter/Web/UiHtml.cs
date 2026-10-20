@@ -230,6 +230,18 @@ namespace PCLDownloadCenter
   <!-- ============ 帮助 ============ -->
   <section class="view" id="view-about">
     <div class="card">
+      <div class="card-head"><h2>关于 / 致谢</h2><span class="muted">PCL 下载中心（第三方修改版）</span></div>
+      <p class="muted" style="margin:0 0 8px">PCL（Plain Craft Launcher 2）原作者：<strong>龙腾猫跃（LTCat）</strong>。本插件是第三方基于 PCL 独立进行二次创作的产物，与 PCL 官方无关。</p>
+      <p class="muted" style="margin:0 0 4px">如果觉得 PCL 好用，欢迎赞助作者：<a href="https://meloong.com/afd/a/LTCat" target="_blank" rel="noreferrer">https://meloong.com/afd/a/LTCat</a></p>
+      <div class="form-actions" style="margin-top:10px">
+        <a class="btn primary" href="https://github.com/hu568/PCL2-download-Custom" target="_blank" rel="noreferrer">本项目 GitHub 仓库</a>
+        <a class="btn" href="https://github.com/Meloong-Git/PCL" target="_blank" rel="noreferrer">PCL GitHub（维护版）</a>
+        <a class="btn" href="https://github.com/Hex-Dragon/PCL2" target="_blank" rel="noreferrer">PCL 原版仓库</a>
+        <a class="btn" href="https://shimo.im/docs/rGrd8pY8xWkt6ryW#anchor-X0bo" target="_blank" rel="noreferrer">PCL 分发有限许可</a>
+      </div>
+      <p class="muted" style="margin:10px 0 0">本项目以 GNU GPL-3.0 发布，源码即上面的 GitHub 仓库；遵循《PCL 存储库合理使用指南》，完整声明见发布包内的 LICENSE / LICENCE-PCL.md / THIRD-PARTY-NOTICES.md。</p>
+    </div>
+    <div class="card">
       <div class="card-head"><h2>帮助 / 关于</h2><span class="muted" id="aboutSummary"></span></div>
       <div id="aboutInfo"><div class="loading"><span class="spinner"></span>正在读取运行信息…</div></div>
     </div>

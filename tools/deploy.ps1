@@ -54,7 +54,8 @@ if (Test-Path $setupIni) {
 $deployed = Join-Path $Target 'PCLDownloadCenter.exe'
 Write-Host "已部署到：$Target" -ForegroundColor Green
 if (-not $NoHomepage) {
-    & $deployed --homepage publish
-    if ($LASTEXITCODE -ne 0) { Write-Host "重写主页失败（退出码 $LASTEXITCODE）" -ForegroundColor Yellow }
+    # GUI 子系统 exe 用 Start-Process -Wait 才拿得到真实退出码，也不会留下未退出的进程
+    $pub = Start-Process -FilePath $deployed -ArgumentList '--homepage publish' -WindowStyle Hidden -PassThru -Wait
+    if ($pub.ExitCode -ne 0) { Write-Host "重写主页失败（退出码 $($pub.ExitCode)）" -ForegroundColor Yellow }
 }
 Write-Host "PCL 目录：$pclDir（Custom.xaml 位于此）" -ForegroundColor Green

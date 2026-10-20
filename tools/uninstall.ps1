@@ -43,7 +43,8 @@ $target = Join-Path $PclDir 'DownloadCenter'
 $exe = Join-Path $target 'PCLDownloadCenter.exe'
 
 Write-Host "卸载 PCL 下载中心（第三方修改版）：$target" -ForegroundColor Cyan
-if (Test-Path $exe) { & $exe --stop | Out-Null }
+# 同上：不要用管道调用 GUI 子进程，否则可能卡住
+if (Test-Path $exe) { try { Start-Process -FilePath $exe -ArgumentList '--stop' -WindowStyle Hidden -Wait -ErrorAction Stop } catch { } }
 Start-Sleep -Milliseconds 1000
 $procs = Get-CimInstance Win32_Process -Filter "Name='PCLDownloadCenter.exe'" -ErrorAction SilentlyContinue
 foreach ($proc in $procs) {

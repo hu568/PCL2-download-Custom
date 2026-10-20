@@ -43,7 +43,8 @@ function Resolve-PclDir([string]$startDir) {
 function Stop-ExistingBackend([string]$exePath) {
     if (-not (Test-Path $exePath)) { return }
     Write-Host "检测到已安装的后端，正在停止旧服务……" -ForegroundColor DarkGray
-    try { & $exePath --stop | Out-Null } catch { }
+    # 用 Start-Process -Wait 且不接管标准流：直接 & 调用 GUI 子进程时管道会被子进程继承，脚本可能一直等下去（卡死）
+    try { Start-Process -FilePath $exePath -ArgumentList '--stop' -WindowStyle Hidden -Wait -ErrorAction Stop } catch { }
     Start-Sleep -Milliseconds 1200
     $procs = Get-CimInstance Win32_Process -Filter "Name='PCLDownloadCenter.exe'" -ErrorAction SilentlyContinue
     foreach ($proc in $procs) {

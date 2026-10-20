@@ -8,7 +8,14 @@ $build = Join-Path $root 'build'
 if (-not (Test-Path (Join-Path $build 'PCLDownloadCenter.exe'))) { throw "请先运行 tools\build.ps1" }
 
 $release = if ($OutDir) { $OutDir } else { Join-Path $root 'release' }
-if (Test-Path $release) { Remove-Item $release -Recurse -Force }
+if (Test-Path $release) {
+    try { Remove-Item $release -Recurse -Force -ErrorAction Stop }
+    catch {
+        # 目录本身可能被资源管理器等进程占用：这时删不掉根目录，但可以清空内容后继续打包
+        Write-Host "提示：$release 无法整体删除（可能被资源管理器打开），改为清空内容后继续。" -ForegroundColor Yellow
+        Get-ChildItem -LiteralPath $release -Force | Remove-Item -Recurse -Force -ErrorAction Stop
+    }
+}
 $plugin = Join-Path $release 'PCL\DownloadCenter'
 New-Item -ItemType Directory -Force -Path $plugin | Out-Null
 

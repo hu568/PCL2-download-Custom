@@ -189,7 +189,7 @@ powershell -ExecutionPolicy Bypass -File tools\pack.ps1       # → release\（�
 
 ### 8.2 本项目许可
 
-- 本仓库源码与发布包以 **GNU GPL-3.0** 发布，全文见 [LICENSE](LICENSE)。
+- 本项目开源仓库（GitHub）：**https://github.com/hu568/PCL2-download-Custom** ；源码与发布包以 **GNU GPL-3.0** 发布，全文见 [LICENSE](LICENSE)。
 - 随包分发的第三方组件：**Newtonsoft.Json 13.0.3（MIT Copyright © James Newton-King）**，全文与其余声明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 - 再分发本项目（或修改后的版本）时，请一并带上 `LICENSE`、`LICENCE-PCL.md`、`THIRD-PARTY-NOTICES.md`，并提供对应源码。
 
